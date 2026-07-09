@@ -245,6 +245,39 @@ function getCheckedFactor(name) {
   };
 }
 
+function getS1Config() {
+  const selected = getCheckedFactor('nbrS1');
+
+  if (selected.value !== 'slope') {
+    return {
+      value: selected.value,
+      title: selected.title,
+    };
+  }
+
+  const mode = getCheckedFactor('nbrS1SlopeMode');
+  const manualValue = getValue('#nbrS1ManualInput').replace(',', '.');
+
+  if (mode.value === 'manual') {
+    return {
+      value: manualValue,
+      title: 'Taludes ou morros - valor calculado',
+    };
+  }
+
+  if (mode.value === 'top') {
+    return {
+      value: '1.20',
+      title: 'Taludes ou morros - meio/topo estimativo',
+    };
+  }
+
+  return {
+    value: '1.0',
+    title: 'Taludes ou morros - pé de morro/base',
+  };
+}
+
 function snapshotFactorDialog(dialog) {
   const inputs = [...dialog.querySelectorAll('input')];
 
@@ -295,6 +328,13 @@ function markFactorDialogsDirty() {
   }
 }
 
+function updateS1SlopeVisibility() {
+  const selected = getCheckedFactor('nbrS1');
+  const slopeOptions = document.querySelector('#nbrS1SlopeOptions');
+
+  slopeOptions?.classList.toggle('is-visible', selected.value === 'slope');
+}
+
 function addFrameData(requestData, selectors) {
   const larguratotal = getValue(selectors.largura);
   const quantidadefol = getValue(selectors.folhas);
@@ -343,9 +383,9 @@ function displayResult(containerSelector, response) {
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div><dt>Pressao de ensaio</dt><dd>${pressaoFormatada} Pa</dd></div>
-      <div><dt>Wx necessario</dt><dd>${wxFormatado} mm³</dd></div>
-      <div><dt>Jx necessario</dt><dd>${jxFormatado} mm⁴</dd></div>
+      <div class="result-highlight"><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
+      <div><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
+      <div><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
     </dl>
   `;
 }
@@ -388,7 +428,7 @@ async function calculateByLocation() {
 
 function getNbrPayload() {
   const marker = maps.nbr.marker;
-  const s1 = getCheckedFactor('nbrS1');
+  const s1 = getS1Config();
   const s2 = getCheckedFactor('nbrS2');
   const s3 = getCheckedFactor('nbrS3');
   const payload = {
@@ -423,7 +463,7 @@ function renderNbrDraftResult() {
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div><dt>Pressao de ensaio</dt><dd>Aguardando calculo</dd></div>
+      <div><dt>Pressao de ensaio</dt><dd><span>Aguardando</span><small>calculo</small></dd></div>
       <div><dt>Esquadria</dt><dd>Nao calculada</dd></div>
     </dl>
   `;
@@ -431,33 +471,18 @@ function renderNbrDraftResult() {
 
 function renderNbrCalculatedResult(response) {
   const resultsSection = document.querySelector('#nbrResults');
-  const cp = response.cp;
   const pressureLabel = `${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
-  const cpLabel = Math.abs(cp.governing.cp).toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 3,
-  });
-  const positiveLabel = cp.positive_pressure > 0
-    ? `${Math.round(cp.positive_pressure).toLocaleString('pt-BR')} Pa`
-    : '-- Pa';
-  const negativeLabel = cp.negative_pressure < 0
-    ? `${Math.round(cp.negative_pressure).toLocaleString('pt-BR')} Pa`
-    : '-- Pa';
   const frameHtml = response.wx && response.jx
     ? `
-      <div><dt>Wx necessario</dt><dd>${Math.ceil(response.wx).toLocaleString('pt-BR')} mm³</dd></div>
-      <div><dt>Jx necessario</dt><dd>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')} mm⁴</dd></div>
+      <div><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
+      <div><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
     `
     : '<div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>';
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div><dt>Pressao de ensaio</dt><dd>${pressureLabel}</dd></div>
-      <div><dt>Cp usado</dt><dd>${cpLabel}</dd></div>
-      <div><dt>Caso critico</dt><dd>${cp.governing.wind_angle} / ${cp.governing.zone}</dd></div>
-      <div><dt>Pressao positiva</dt><dd>${positiveLabel}</dd></div>
-      <div><dt>Pressao negativa</dt><dd>${negativeLabel}</dd></div>
+      <div class="result-highlight"><dt>Pressao de ensaio</dt><dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd></div>
       ${frameHtml}
     </dl>
   `;
@@ -466,7 +491,7 @@ function renderNbrCalculatedResult(response) {
 }
 
 async function updateFactorSummaries() {
-  const s1 = getCheckedFactor('nbrS1');
+  const s1 = getS1Config();
   const s2 = getCheckedFactor('nbrS2');
   const s3 = getCheckedFactor('nbrS3');
   const s2Preview = await requestS2Preview();
@@ -647,7 +672,25 @@ document.querySelector('#togglePressureDetailsBtn')?.addEventListener('click', (
   setPressureDetailsCollapsed(!panel.classList.contains('is-collapsed'));
 });
 document.querySelectorAll('input[name="nbrS1"], input[name="nbrS2"], input[name="nbrS3"]').forEach((input) => {
+  input.addEventListener('change', () => {
+    updateS1SlopeVisibility();
+    markFactorDialogsDirty();
+  });
+});
+document.querySelectorAll('input[name="nbrS1SlopeMode"]').forEach((input) => {
   input.addEventListener('change', markFactorDialogsDirty);
+});
+document.querySelector('#nbrS1ManualInput')?.addEventListener('input', () => {
+  const manualMode = document.querySelector('input[name="nbrS1SlopeMode"][value="manual"]');
+  const slopeMode = document.querySelector('input[name="nbrS1"][value="slope"]');
+
+  if (manualMode && slopeMode) {
+    manualMode.checked = true;
+    slopeMode.checked = true;
+    updateS1SlopeVisibility();
+  }
+
+  markFactorDialogsDirty();
 });
 document.querySelector('#nbrS3SealingCheckbox')?.addEventListener('change', markFactorDialogsDirty);
 document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {
@@ -655,4 +698,5 @@ document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbr
 });
 
 updateFactorSummaries();
+updateS1SlopeVisibility();
 setPressureDetailsCollapsed(false);

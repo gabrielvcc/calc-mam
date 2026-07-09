@@ -215,7 +215,7 @@ a.top-btn {
 .view {
   height: 100%;
   display: none;
-  padding: 28px;
+  padding: 18px 24px 24px;
   overflow: auto;
 }
 
@@ -226,7 +226,7 @@ a.top-btn {
 .home-view {
   display: none;
   flex-direction: column;
-  gap: 22px;
+  gap: 14px;
 }
 
 .home-view.active {
@@ -253,10 +253,10 @@ h1 {
 
 .choice-grid {
   flex: 1;
-  min-height: 420px;
+  min-height: 390px;
   display: grid;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
 .choice-panel {
@@ -307,7 +307,7 @@ h1 {
 
 .choice-content {
   height: 100%;
-  min-height: 420px;
+  min-height: 390px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -354,7 +354,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .icon-btn {
@@ -378,7 +378,7 @@ h1 {
 .workspace {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(320px, 1fr) minmax(240px, 310px);
-  gap: 18px;
+  gap: 14px;
   align-items: stretch;
 }
 
@@ -624,13 +624,35 @@ select:focus {
 
 .result-panel dl {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .result-panel dl div {
+  position: relative;
+  overflow: hidden;
   padding: 14px;
   border-radius: 8px;
-  background: var(--light-gray);
+  border: 1px solid rgba(0, 156, 218, 0.08);
+  background:
+    linear-gradient(135deg, rgba(0, 156, 218, 0.08), transparent 58%),
+    var(--light-gray);
+}
+
+.result-panel dl div::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--blue);
+  opacity: 0.6;
+}
+
+.result-panel dl div.result-highlight {
+  border-color: rgba(0, 156, 218, 0.28);
+  background:
+    linear-gradient(135deg, rgba(0, 156, 218, 0.18), rgba(255, 255, 255, 0.72)),
+    #eef9fd;
+  box-shadow: 0 10px 24px rgba(0, 156, 218, 0.12);
 }
 
 .result-panel dt {
@@ -641,8 +663,30 @@ select:focus {
 }
 
 .result-panel dd {
-  font-size: 15px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  color: var(--dark-gray);
+  font-size: 14px;
   font-weight: 700;
+}
+
+.result-panel dd span {
+  color: var(--blue-dark);
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.result-panel dd small {
+  color: var(--medium-gray);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.result-panel .result-highlight dd span {
+  font-size: 28px;
 }
 
 dialog {
@@ -699,8 +743,33 @@ dialog::backdrop {
   gap: 12px;
 }
 
+.nested-factor-options {
+  display: none;
+  gap: 10px;
+  margin: -2px 0 4px 28px;
+  padding: 12px;
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+  background: #f7fbfd;
+}
+
+.nested-factor-options.is-visible {
+  display: grid;
+}
+
 .compact-options {
   gap: 10px;
+}
+
+.factor-value-input {
+  width: 74px;
+  min-width: 74px;
+  height: 34px;
+  padding: 0 8px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-dark);
 }
 
 .s3-option-grid .option-card {
@@ -733,7 +802,7 @@ dialog::backdrop {
   box-shadow: inset 3px 0 0 var(--blue);
 }
 
-.option-card input {
+.option-card input[type="radio"] {
   appearance: none;
   box-sizing: border-box;
   width: 18px;
@@ -749,7 +818,7 @@ dialog::backdrop {
   box-shadow: none;
 }
 
-.option-card input:checked {
+.option-card input[type="radio"]:checked {
   border-color: var(--blue);
   background: radial-gradient(circle, var(--blue) 0 42%, transparent 46%);
 }
@@ -1002,7 +1071,7 @@ dialog::backdrop {
   }
 
   .view {
-    padding: 18px;
+    padding: 14px;
     overflow: visible;
   }
 

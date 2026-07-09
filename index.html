@@ -18,7 +18,7 @@
       <img src="favicon.png" alt="">
       <div>
         <strong>Calculadora de Resistência de Perfis de Alumínio</strong>
-        <span>NBR 6123</span>
+        <span>NBR 6123 / NBR 10821 / NBR 8117 / NBR 6834</span>
       </div>
     </a>
 
@@ -278,13 +278,41 @@
           <b>1,0</b>
         </label>
         <label class="option-card">
-          <input type="radio" name="nbrS1" value="1.1" data-title="Taludes ou morros">
+          <input type="radio" name="nbrS1" value="slope" data-title="Taludes ou morros">
           <span>
             <strong>Taludes ou morros</strong>
-            <small>Aplicado quando a topografia pode acelerar o vento na edificacao.</small>
+            <small>Use um valor calculado pela NBR 6123 ou uma das referencias simplificadas abaixo.</small>
           </span>
-          <b>1,1</b>
+          <b>Config.</b>
         </label>
+
+        <div class="nested-factor-options" id="nbrS1SlopeOptions">
+          <label class="option-card">
+            <input type="radio" name="nbrS1SlopeMode" value="manual" data-title="Valor calculado pela NBR 6123">
+            <span>
+              <strong>Valor calculado</strong>
+              <small>Informe o S1 calculado usando os critérios da NBR 6123 para o talude ou morro.</small>
+            </span>
+            <input id="nbrS1ManualInput" class="factor-value-input" type="number" min="0" step="0.01" placeholder="x,xx">
+          </label>
+          <label class="option-card">
+            <input type="radio" name="nbrS1SlopeMode" value="base" data-title="Pé de morro/base" checked>
+            <span>
+              <strong>Pé de morro/base</strong>
+              <small>Considera S1 igual a 1,0 conforme condição da base.</small>
+            </span>
+            <b>1,0</b>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="nbrS1SlopeMode" value="top" data-title="Meio/topo estimativo">
+            <span>
+              <strong>Meio/topo</strong>
+              <small>Valor estimativo para casos usuais de morro; para casos extremos, calcule pela norma.</small>
+            </span>
+            <b>1,20</b>
+          </label>
+        </div>
+
         <label class="option-card">
           <input type="radio" name="nbrS1" value="0.9" data-title="Vales profundos protegidos">
           <span>
