@@ -31,6 +31,7 @@ const maps = {
 };
 
 const factorDialogState = {};
+let lastNbrCalculation = null;
 
 function showView(viewId) {
   views.forEach((view) => {
@@ -472,6 +473,7 @@ function renderNbrDraftResult() {
 function renderNbrCalculatedResult(response) {
   const resultsSection = document.querySelector('#nbrResults');
   const pressureLabel = `${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
+  lastNbrCalculation = response;
   const frameHtml = response.wx && response.jx
     ? `
       <div><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
@@ -482,12 +484,99 @@ function renderNbrCalculatedResult(response) {
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div class="result-highlight"><dt>Pressao de ensaio</dt><dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd></div>
+      <div class="result-highlight result-with-action">
+        <dt>Pressao de ensaio</dt>
+        <dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd>
+        <button class="detail-btn" type="button" id="calculationDetailsBtn">Detalhes</button>
+      </div>
       ${frameHtml}
     </dl>
   `;
 
   document.querySelector('#nbrPressureFinalValue').textContent = pressureLabel;
+  document.querySelector('#calculationDetailsBtn')?.addEventListener('click', openCalculationDetails);
+}
+
+function detailItem(label, value) {
+  return `
+    <div>
+      <dt>${label}</dt>
+      <dd>${value ?? '--'}</dd>
+    </div>
+  `;
+}
+
+function formatDetailNumber(value, digits = 2) {
+  if (typeof value !== 'number') {
+    return '--';
+  }
+
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function openCalculationDetails() {
+  if (!lastNbrCalculation) {
+    return;
+  }
+
+  const dialog = document.querySelector('#calculationDetailsDialog');
+  const content = document.querySelector('#calculationDetailsContent');
+  const cp = lastNbrCalculation.cp;
+  const s2 = lastNbrCalculation.s2;
+  const s3 = lastNbrCalculation.s3;
+
+  content.innerHTML = `
+    <section>
+      <h3>Pressao de vento</h3>
+      <dl>
+        ${detailItem('Tabela / criterio', 'NBR 6123:2023 - fatores S1, S2, S3')}
+        ${detailItem('Regiao de vento', `Regiao ${lastNbrCalculation.regiao}`)}
+        ${detailItem('V0', `${lastNbrCalculation.v0} m/s`)}
+        ${detailItem('S1', formatDetailNumber(lastNbrCalculation.s1))}
+        ${detailItem('S2', formatDetailNumber(s2.value))}
+        ${detailItem('S3 aplicado', formatDetailNumber(s3.effective))}
+        ${detailItem('Pressao dinamica q', `${Math.round(lastNbrCalculation.q).toLocaleString('pt-BR')} Pa`)}
+      </dl>
+    </section>
+
+    <section>
+      <h3>S2</h3>
+      <dl>
+        ${detailItem('Classe', `Classe ${s2.class}`)}
+        ${detailItem('Bm', formatDetailNumber(s2.meteorological?.bm))}
+        ${detailItem('p', formatDetailNumber(s2.meteorological?.p, 3))}
+        ${detailItem('Fr', formatDetailNumber(s2.gust_factor))}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Coeficiente de pressao</h3>
+      <dl>
+        ${detailItem('Tabela / criterio', 'Tabela 6 - Cpe paredes retangulares')}
+        ${detailItem('h/b', formatDetailNumber(cp.governing.h_over_b, 3))}
+        ${detailItem('a/b', formatDetailNumber(cp.governing.a_over_b, 3))}
+        ${detailItem('Direcao', cp.governing.wind_angle)}
+        ${detailItem('Zona critica', cp.governing.zone)}
+        ${detailItem('Cpe', formatDetailNumber(cp.governing.cpe))}
+        ${detailItem('Cpi', formatDetailNumber(cp.governing.cpi))}
+        ${detailItem('Cp usado', formatDetailNumber(Math.abs(cp.governing.cp), 3))}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Pressao na esquadria</h3>
+      <dl>
+        ${detailItem('Pressao positiva', `${Math.round(cp.positive_pressure).toLocaleString('pt-BR')} Pa`)}
+        ${detailItem('Pressao negativa', `${Math.round(cp.negative_pressure).toLocaleString('pt-BR')} Pa`)}
+        ${detailItem('Maior absoluto', `${Math.round(lastNbrCalculation.pressao_ensaio).toLocaleString('pt-BR')} Pa`)}
+      </dl>
+    </section>
+  `;
+
+  dialog?.showModal();
 }
 
 async function updateFactorSummaries() {

@@ -689,6 +689,36 @@ select:focus {
   font-size: 28px;
 }
 
+.result-with-action {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px 12px;
+}
+
+.result-with-action dt,
+.result-with-action dd {
+  grid-column: 1;
+}
+
+.detail-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 156, 218, 0.28);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-btn:hover {
+  background: #f7fbfd;
+  color: var(--blue);
+}
+
 dialog {
   width: min(420px, calc(100vw - 32px));
   margin: auto;
@@ -709,6 +739,50 @@ dialog::backdrop {
   margin: 10px 0 18px;
   color: var(--medium-gray);
   line-height: 1.5;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.details-grid section {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--light-gray);
+}
+
+.details-grid h3 {
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+.details-grid dl {
+  display: grid;
+  gap: 8px;
+}
+
+.details-grid dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.details-grid dt {
+  color: var(--medium-gray);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.details-grid dd {
+  color: var(--dark-gray);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
 }
 
 .factor-dialog {
@@ -1040,7 +1114,8 @@ dialog::backdrop {
 
   .factor-layout,
   .s2-layout,
-  .dimension-grid {
+  .dimension-grid,
+  .details-grid {
     grid-template-columns: 1fr;
   }
 }

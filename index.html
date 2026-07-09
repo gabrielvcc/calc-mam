@@ -43,7 +43,7 @@
       <section class="home-view view active" id="homeView" aria-labelledby="homeTitle">
         <div class="home-heading">
           <p class="eyebrow">Escolha o fluxo de calculo</p>
-          <h1 id="homeTitle">Cálculo de pressão de vento</h1>
+          <h1 id="homeTitle">Cálculo de resistência e pressão de vento</h1>
         </div>
 
         <div class="choice-grid" aria-label="Tipos de calculo">
@@ -255,6 +255,20 @@
       <h2>Calculadora NBR 6123</h2>
       <p>Base visual nova para organizar os fluxos de pressao do vento e esquadria.</p>
       <button class="primary-btn" type="button" data-close-dialog>Fechar</button>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="calculationDetailsDialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Memoria de calculo</p>
+          <h2>Detalhes</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div id="calculationDetailsContent" class="details-grid"></div>
     </div>
   </dialog>
 
