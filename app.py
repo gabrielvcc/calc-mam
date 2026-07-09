@@ -116,6 +116,24 @@ facade_cpe_table_nbr_2023 = {
 
 internal_pressure_cases = [0.2, -0.3]
 
+alloy_properties = {
+    "6060-T5": {
+        "lrt": 150,
+        "melast": 70000,
+        "densidade": 000270,
+    },
+    "6063-T6": {
+        "lrt": 180,
+        "melast": 70000,
+        "densidade": 000270,
+    },
+    "6351-T6": {
+        "lrt": 290,
+        "melast": 70000,
+        "densidade": 000271,
+    },
+}
+
 def calcular_pressao(region, pavimentos):
     if region in pressao_map:
         pavimentos_disponiveis = sorted(pressao_map[region].keys())
@@ -260,13 +278,28 @@ def add_frame_result(response, data, pressao_ensaio):
     if larguratotal <= 0 or quantidadefol <= 0 or alturafol <= 0:
         raise ValueError("Dados da esquadria inválidos")
 
-    lrt = 150
-    melast = 70000
+    alloy_name = data.get("liga", "6060-T5")
+    alloy = alloy_properties.get(alloy_name)
+
+    if not alloy:
+        raise ValueError("Liga não cadastrada")
+
+    lrt = alloy.get("lrt")
+    melast = alloy.get("melast")
+
+    if not lrt or not melast:
+        raise ValueError("Propriedades da liga não cadastradas")
 
     largura_folha = largurafolha(larguratotal, quantidadefol)
     response.update({
         "wx": calcular_wx(pressao_ensaio, largura_folha, alturafol, lrt),
         "jx": calcular_jx(pressao_ensaio, largura_folha, alturafol, melast),
+        "liga": {
+            "nome": alloy_name,
+            "lrt": lrt,
+            "melast": melast,
+            "densidade": alloy.get("densidade"),
+        },
     })
 
 def encontrar_regiao(latitude, longitude):

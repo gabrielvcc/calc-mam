@@ -32,6 +32,7 @@ const maps = {
 
 const factorDialogState = {};
 let lastNbrCalculation = null;
+let selectedAlloy = '6060-T5';
 
 function showView(viewId) {
   views.forEach((view) => {
@@ -345,7 +346,16 @@ function addFrameData(requestData, selectors) {
     requestData.larguratotal = larguratotal;
     requestData.quantidadefol = quantidadefol;
     requestData.alturafol = alturafol;
+    requestData.liga = selectedAlloy;
   }
+}
+
+function setSelectedAlloy(alloy) {
+  selectedAlloy = alloy;
+
+  document.querySelectorAll('[data-alloy-label]').forEach((label) => {
+    label.textContent = alloy;
+  });
 }
 
 async function sendToServer(requestData) {
@@ -782,10 +792,17 @@ document.querySelector('#nbrS1ManualInput')?.addEventListener('input', () => {
   markFactorDialogsDirty();
 });
 document.querySelector('#nbrS3SealingCheckbox')?.addEventListener('change', markFactorDialogsDirty);
+document.querySelectorAll('.alloy-option').forEach((button) => {
+  button.addEventListener('click', () => {
+    setSelectedAlloy(button.dataset.alloy);
+    button.closest('dialog')?.close('apply');
+  });
+});
 document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {
   input.addEventListener('input', markFactorDialogsDirty);
 });
 
 updateFactorSummaries();
 updateS1SlopeVisibility();
+setSelectedAlloy(selectedAlloy);
 setPressureDetailsCollapsed(false);

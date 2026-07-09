@@ -104,6 +104,11 @@
                 <label for="alturafolInput">Altura (mm)<input id="alturafolInput" type="number" step="1" placeholder="Altura total"></label>
                 <label for="quantidadefolInput">Folhas<input id="quantidadefolInput" type="number" min="1" placeholder="Qtd. de folhas"></label>
               </div>
+              <label class="alloy-field">Liga do Alumínio
+                <button class="alloy-select" type="button" data-dialog="alloyDialog">
+                  <strong data-alloy-label>6060-T5</strong>
+                </button>
+              </label>
               <button class="primary-btn wide calc-btn" id="generateJsonBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -186,6 +191,11 @@
                 <label for="nbrAlturaInput">Altura (mm)<input id="nbrAlturaInput" type="number" step="1" placeholder="Altura total"></label>
                 <label for="nbrFolhasInput">Folhas<input id="nbrFolhasInput" type="number" min="1" placeholder="Qtd. de folhas"></label>
               </div>
+              <label class="alloy-field">Liga do Alumínio
+                <button class="alloy-select" type="button" data-dialog="alloyDialog">
+                  <strong data-alloy-label>6060-T5</strong>
+                </button>
+              </label>
               <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -234,6 +244,11 @@
                 <label for="manualAlturaInput">Altura (mm)<input id="manualAlturaInput" type="number" step="1" placeholder="Altura"></label>
                 <label for="manualFolhasInput">Folhas<input id="manualFolhasInput" type="number" min="1" placeholder="Qtd. Folhas"></label>
               </div>
+              <label class="alloy-field">Liga do Alumínio
+                <button class="alloy-select" type="button" data-dialog="alloyDialog">
+                  <strong data-alloy-label>6060-T5</strong>
+                </button>
+              </label>
               <button class="primary-btn wide calc-btn" id="manualCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -269,6 +284,55 @@
       </div>
 
       <div id="calculationDetailsContent" class="details-grid"></div>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="alloyDialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Material da esquadria</p>
+          <h2>Liga de alumínio</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div class="alloy-table-wrap">
+        <table class="alloy-table">
+          <thead>
+            <tr>
+              <th>Liga</th>
+              <th>LRT (N/mm²)</th>
+              <th>Módulo E (MPa)</th>
+              <th>Densidade (kg/mm².m)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>6060-T5</strong></td>
+              <td>150</td>
+              <td>70000</td>
+              <td>000270</td>
+              <td><button class="secondary-btn alloy-option" type="button" data-alloy="6060-T5">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>6063-T6</strong></td>
+              <td>180</td>
+              <td>70000</td>
+              <td>000270</td>
+              <td><button class="secondary-btn alloy-option" type="button" data-alloy="6063-T5">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>6351-T6</strong></td>
+              <td>290</td>
+              <td>70000</td>
+              <td>000271</td>
+              <td><button class="secondary-btn alloy-option" type="button" data-alloy="6063-T6">Selecionar</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </dialog>
 
