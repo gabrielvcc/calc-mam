@@ -136,28 +136,46 @@
 
         <div class="workspace with-map">
           <form class="form-column">
-            <section class="tool-panel">
-              <h2>Pressao do vento</h2>
-              <div class="input-grid">
-                <label for="nbrV0Input">V0 (m/s)<input id="nbrV0Input" type="number" step="0.1" placeholder="Selecione no mapa" readonly></label>
-                <label for="nbrRegionInput">Regiao<input id="nbrRegionInput" type="text" placeholder="Selecione no mapa" readonly></label>
-                <label for="nbrS1Select">S1
-                  <select id="nbrS1Select">
-                    <option value="1.0">Terreno plano ou fracamente acidentado</option>
-                    <option value="1.1">Taludes ou morros</option>
-                    <option value="0.9">Vales profundos protegidos</option>
-                  </select>
-                </label>
-                <label for="nbrS2Select">S2
-                  <select id="nbrS2Select">
-                    <option value="1.0">Definir criterio S2</option>
-                  </select>
-                </label>
-                <label for="nbrS3Select">S3
-                  <select id="nbrS3Select">
-                    <option value="1.0">Definir criterio S3</option>
-                  </select>
-                </label>
+            <section class="tool-panel pressure-panel" id="nbrPressurePanel">
+              <div class="panel-heading-row">
+                <h2>Pressao do vento</h2>
+                <button class="mini-btn" id="togglePressureDetailsBtn" type="button">Ver parametros</button>
+              </div>
+
+              <div class="pressure-final compact-hidden" id="nbrPressureFinal">
+                <span>Pressao de ensaio</span>
+                <strong id="nbrPressureFinalValue">-- Pa</strong>
+              </div>
+
+              <div class="pressure-details" id="nbrPressureDetails">
+                <div class="input-grid">
+                  <label for="nbrV0Input">V0 (m/s)<input id="nbrV0Input" type="number" step="0.1" placeholder="Selecione no mapa" readonly></label>
+                  <label for="nbrRegionInput">Regiao<input id="nbrRegionInput" type="text" placeholder="Selecione no mapa" readonly></label>
+                </div>
+
+                <div class="factor-stack" aria-label="Fatores da NBR 6123">
+                  <button class="factor-summary" type="button" data-dialog="s1Dialog">
+                    <span>
+                      <strong>S1</strong>
+                      <small id="nbrS1Summary">Terreno plano ou fracamente acidentado</small>
+                    </span>
+                    <b id="nbrS1Value">1,0</b>
+                  </button>
+                  <button class="factor-summary" type="button" data-dialog="s2Dialog">
+                    <span>
+                      <strong>S2</strong>
+                      <small id="nbrS2Summary">Categoria a definir</small>
+                    </span>
+                    <b id="nbrS2Value">1,0</b>
+                  </button>
+                  <button class="factor-summary" type="button" data-dialog="s3Dialog">
+                    <span>
+                      <strong>S3</strong>
+                      <small id="nbrS3Summary">Grupo 2 - edificações comuns</small>
+                    </span>
+                    <b id="nbrS3Value">1,0</b>
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -168,7 +186,7 @@
                 <label for="nbrAlturaInput">Altura (mm)<input id="nbrAlturaInput" type="number" step="1" placeholder="Altura total"></label>
                 <label for="nbrFolhasInput">Folhas<input id="nbrFolhasInput" type="number" min="1" placeholder="Qtd. de folhas"></label>
               </div>
-              <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Preparar calculo</button>
+              <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
 
@@ -186,8 +204,7 @@
           <aside class="result-panel" id="nbrResults">
             <h2>Resultados</h2>
             <dl>
-              <div><dt>V0</dt><dd>Selecione um ponto no mapa</dd></div>
-              <div><dt>S1</dt><dd>1,0</dd></div>
+              <div><dt>Pressao de ensaio</dt><dd>Aguardando calculo</dd></div>
               <div><dt>Esquadria</dt><dd>Nao calculada</dd></div>
             </dl>
           </aside>
@@ -234,6 +251,121 @@
       <h2>Calculadora NBR 6123</h2>
       <p>Base visual nova para organizar os fluxos de pressao do vento e esquadria.</p>
       <button class="primary-btn" type="button" data-close-dialog>Fechar</button>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="s1Dialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Fator topografico</p>
+          <h2>S1</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div class="option-grid">
+        <label class="option-card">
+          <input type="radio" name="nbrS1" value="1.0" data-title="Terreno plano ou fracamente acidentado" checked>
+          <span>
+            <strong>Terreno plano ou fracamente acidentado</strong>
+            <small>Referencia usual para terrenos sem aceleracao topografica relevante.</small>
+          </span>
+          <b>1,0</b>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="nbrS1" value="1.1" data-title="Taludes ou morros">
+          <span>
+            <strong>Taludes ou morros</strong>
+            <small>Aplicado quando a topografia pode acelerar o vento na edificacao.</small>
+          </span>
+          <b>1,1</b>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="nbrS1" value="0.9" data-title="Vales profundos protegidos">
+          <span>
+            <strong>Vales profundos protegidos</strong>
+            <small>Para locais protegidos de ventos de qualquer direcao.</small>
+          </span>
+          <b>0,9</b>
+        </label>
+      </div>
+
+      <button class="primary-btn dialog-action" type="button" data-apply-factor="s1Dialog">Aplicar</button>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="s2Dialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Rugosidade, dimensoes e altura</p>
+          <h2>S2</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div class="factor-layout s2-layout">
+        <div class="s2-categories">
+          <div class="option-grid compact-options">
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria1" data-title="Categoria I" checked><span><strong>Categoria I</strong><small>Superficies lisas de grandes dimensoes.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria2" data-title="Categoria II"><span><strong>Categoria II</strong><small>Terrenos abertos com poucos obstaculos.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria3" data-title="Categoria III"><span><strong>Categoria III</strong><small>Terrenos com obstaculos baixos e esparsos.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria4" data-title="Categoria IV"><span><strong>Categoria IV</strong><small>Terrenos cobertos por obstaculos numerosos.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria5" data-title="Categoria V"><span><strong>Categoria V</strong><small>Centro de grandes cidades ou zonas densas.</small></span><b>Tabela</b></label>
+          </div>
+        </div>
+
+        <div class="building-diagram" aria-hidden="true">
+          <div class="building-box">
+            <div class="building-face building-front"></div>
+            <div class="building-face building-side"></div>
+            <div class="building-face building-top"></div>
+            <span class="measure measure-width">Largura maior</span>
+            <span class="measure measure-depth">Largura menor</span>
+            <span class="measure measure-height">Altura</span>
+          </div>
+        </div>
+
+        <div class="dimension-grid">
+          <label for="nbrBuildingWidthInput">Largura maior (m)<input id="nbrBuildingWidthInput" type="number" step="0.01" placeholder="Ex: 24"></label>
+          <label for="nbrBuildingLengthInput">Largura menor (m)<input id="nbrBuildingLengthInput" type="number" step="0.01" placeholder="Ex: 12"></label>
+          <label for="nbrBuildingHeightInput">Altura (m)<input id="nbrBuildingHeightInput" type="number" step="0.01" placeholder="Ex: 18"></label>
+          <div class="s2-calculation-card">
+            <h3>S2 calculado</h3>
+            <dl>
+              <div><dt>Classe</dt><dd id="nbrS2ClassPreview">Informe a altura</dd></div>
+              <div><dt>Parâmetros meteorológicos</dt><dd id="nbrS2MeteorPreview">--</dd></div>
+              <div><dt>Fator rajada</dt><dd id="nbrS2GustPreview">--</dd></div>
+              <div><dt>Resultado</dt><dd id="nbrS2ResultPreview">--</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <button class="primary-btn dialog-action" type="button" data-apply-factor="s2Dialog">Aplicar</button>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="s3Dialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Fator estatistico</p>
+          <h2>S3</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div class="option-grid">
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.10" data-title="Grupo 1 - alta seguranca"><span><strong>Grupo 1 - alta seguranca</strong><small>Edificacoes onde uma falha pode ter consequencias muito severas.</small></span><b>1,10</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.00" data-title="Grupo 2 - edificacoes comuns" checked><span><strong>Grupo 2 - edificacoes comuns</strong><small>Uso geral, residencial, comercial e industrial usual.</small></span><b>1,00</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.95" data-title="Grupo 3 - baixo risco humano"><span><strong>Grupo 3 - baixo risco humano</strong><small>Construcoes com menor permanencia de pessoas.</small></span><b>0,95</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.88" data-title="Grupo 4 - estruturas temporarias"><span><strong>Grupo 4 - estruturas temporarias</strong><small>Estruturas com vida util reduzida ou uso temporario.</small></span><b>0,88</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.83" data-title="Grupo 5 - estruturas provisórias"><span><strong>Grupo 5 - estruturas provisorias</strong><small>Casos de menor permanencia e menor exposicao ao risco.</small></span><b>0,83</b></label>
+      </div>
+
+      <button class="primary-btn dialog-action" type="button" data-apply-factor="s3Dialog">Aplicar</button>
     </div>
   </dialog>
 

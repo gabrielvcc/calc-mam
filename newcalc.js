@@ -4,10 +4,13 @@ const openButtons = document.querySelectorAll('.open-view, .choice-panel');
 const backButtons = document.querySelectorAll('.back-btn');
 const dialogButtons = document.querySelectorAll('[data-dialog]');
 const closeDialogButtons = document.querySelectorAll('[data-close-dialog]');
+const applyFactorButtons = document.querySelectorAll('[data-apply-factor]');
 
 const apiBaseUrl = 'https://api.calculoperfil.gabrielvc.com.br';
 const apiUrl = `${apiBaseUrl}/pressaovento`;
 const regionUrl = `${apiBaseUrl}/regiaovento`;
+const s2PreviewUrl = `${apiBaseUrl}/nbr6123/s2`;
+const nbrCalcUrl = `${apiBaseUrl}/nbr6123/calcular`;
 
 const mapConfigs = {
   tabled: {
@@ -26,6 +29,8 @@ const maps = {
   tabled: { instance: null, marker: null },
   nbr: { instance: null, marker: null, region: null, v0: null },
 };
+
+const factorDialogState = {};
 
 function showView(viewId) {
   views.forEach((view) => {
@@ -64,6 +69,8 @@ dialogButtons.forEach((button) => {
     const dialog = document.querySelector(`#${button.dataset.dialog}`);
 
     if (dialog && typeof dialog.showModal === 'function') {
+      snapshotFactorDialog(dialog);
+      updateFactorSummaries();
       dialog.showModal();
     }
   });
@@ -71,7 +78,39 @@ dialogButtons.forEach((button) => {
 
 closeDialogButtons.forEach((button) => {
   button.addEventListener('click', () => {
-    button.closest('dialog')?.close();
+    button.closest('dialog')?.close('cancel');
+  });
+});
+
+applyFactorButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const dialog = document.querySelector(`#${button.dataset.applyFactor}`);
+
+    if (dialog) {
+      factorDialogState[dialog.id] = { ...factorDialogState[dialog.id], applied: true };
+      updateFactorSummaries();
+      dialog.close('apply');
+    }
+  });
+});
+
+document.querySelectorAll('dialog').forEach((dialog) => {
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) {
+      dialog.close('cancel');
+    }
+  });
+
+  dialog.addEventListener('close', () => {
+    if (!factorDialogState[dialog.id]) {
+      return;
+    }
+
+    if (!factorDialogState[dialog.id].applied) {
+      restoreFactorDialog(dialog);
+    }
+
+    delete factorDialogState[dialog.id];
   });
 });
 
@@ -96,13 +135,14 @@ function initMap(key) {
   }).addTo(state.instance);
 
   state.instance.on('click', (event) => {
-    updateMarker(key, event.latlng.lat, event.latlng.lng);
+    updateMarker(key, event.latlng.lat, event.latlng.lng, { recenter: false });
   });
 }
 
-function updateMarker(key, lat, lon) {
+function updateMarker(key, lat, lon, options = {}) {
   const state = maps[key];
   const config = mapConfigs[key];
+  const { recenter = true } = options;
 
   if (!state.instance) {
     return;
@@ -114,7 +154,10 @@ function updateMarker(key, lat, lon) {
     state.marker = L.marker([lat, lon]).addTo(state.instance);
   }
 
-  state.instance.setView([lat, lon], 13);
+  if (recenter) {
+    state.instance.setView([lat, lon], 13);
+  }
+
   config.onMarkerChange?.(lat, lon);
 }
 
@@ -174,6 +217,8 @@ async function updateNbrWindRegion(lat, lon) {
 
     document.querySelector('#nbrRegionInput').value = `Região ${data.regiao}`;
     document.querySelector('#nbrV0Input').value = data.v0;
+    document.querySelector('#nbrPressureFinalValue').textContent = '-- Pa';
+    setPressureDetailsCollapsed(false);
     renderNbrDraftResult();
   } catch (error) {
     console.error('Erro ao buscar região de vento:', error);
@@ -181,12 +226,73 @@ async function updateNbrWindRegion(lat, lon) {
     maps.nbr.v0 = null;
     document.querySelector('#nbrRegionInput').value = '';
     document.querySelector('#nbrV0Input').value = '';
+    document.querySelector('#nbrPressureFinalValue').textContent = '-- Pa';
+    setPressureDetailsCollapsed(false);
     alert('Não foi possível identificar a região de vento para esse ponto.');
   }
 }
 
 function getValue(selector) {
   return document.querySelector(selector)?.value.trim() || '';
+}
+
+function getCheckedFactor(name) {
+  const checked = document.querySelector(`input[name="${name}"]:checked`);
+
+  return {
+    value: checked?.value || '',
+    title: checked?.dataset.title || '',
+  };
+}
+
+function snapshotFactorDialog(dialog) {
+  const inputs = [...dialog.querySelectorAll('input')];
+
+  if (!inputs.length) {
+    return;
+  }
+
+  factorDialogState[dialog.id] = {
+    applied: false,
+    inputs: inputs.map((input, index) => ({
+      index,
+      id: input.id,
+      name: input.name,
+      type: input.type,
+      value: input.value,
+      checked: input.checked,
+    })),
+  };
+}
+
+function restoreFactorDialog(dialog) {
+  const snapshot = factorDialogState[dialog.id];
+
+  snapshot.inputs.forEach((item) => {
+    const input = dialog.querySelectorAll('input')[item.index];
+
+    if (!input) {
+      return;
+    }
+
+    if (item.type === 'radio' || item.type === 'checkbox') {
+      input.checked = item.checked;
+    } else {
+      input.value = item.value;
+    }
+  });
+}
+
+function markFactorDialogsDirty() {
+  const openDialog = document.querySelector('dialog[open].factor-dialog');
+
+  if (openDialog && factorDialogState[openDialog.id]) {
+    factorDialogState[openDialog.id].applied = false;
+  }
+
+  if (openDialog?.id === 's2Dialog') {
+    requestS2Preview().then(renderS2Preview);
+  }
 }
 
 function addFrameData(requestData, selectors) {
@@ -282,12 +388,19 @@ async function calculateByLocation() {
 
 function getNbrPayload() {
   const marker = maps.nbr.marker;
+  const s1 = getCheckedFactor('nbrS1');
+  const s2 = getCheckedFactor('nbrS2');
+  const s3 = getCheckedFactor('nbrS3');
   const payload = {
-    regiao: maps.nbr.region,
-    v0: getValue('#nbrV0Input'),
-    s1: getValue('#nbrS1Select'),
-    s2: getValue('#nbrS2Select'),
-    s3: getValue('#nbrS3Select'),
+    s1: s1.value,
+    s1_titulo: s1.title,
+    s2_categoria: s2.value,
+    s2_titulo: s2.title,
+    s2_largura_1: getValue('#nbrBuildingWidthInput'),
+    s2_largura_2: getValue('#nbrBuildingLengthInput'),
+    s2_altura: getValue('#nbrBuildingHeightInput'),
+    s3: s3.value,
+    s3_titulo: s3.title,
   };
 
   if (marker) {
@@ -306,29 +419,167 @@ function getNbrPayload() {
 
 function renderNbrDraftResult() {
   const resultsSection = document.querySelector('#nbrResults');
-  const payload = getNbrPayload();
-  const regionLabel = payload.regiao ? `Região ${payload.regiao}` : 'Selecione um ponto no mapa';
-  const v0Label = payload.v0 ? `${payload.v0} m/s` : '-- m/s';
-
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div><dt>Regiao</dt><dd>${regionLabel}</dd></div>
-      <div><dt>V0</dt><dd>${v0Label}</dd></div>
-      <div><dt>S1</dt><dd>${payload.s1}</dd></div>
-      <div><dt>S2</dt><dd>${payload.s2}</dd></div>
-      <div><dt>S3</dt><dd>${payload.s3}</dd></div>
+      <div><dt>Pressao de ensaio</dt><dd>Aguardando calculo</dd></div>
+      <div><dt>Esquadria</dt><dd>Nao calculada</dd></div>
     </dl>
   `;
 }
 
-function prepareNbrCalculation() {
+function renderNbrCalculatedResult(response) {
+  const resultsSection = document.querySelector('#nbrResults');
+  const cp = response.cp;
+  const pressureLabel = `${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
+  const cpLabel = Math.abs(cp.governing.cp).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 3,
+  });
+  const positiveLabel = cp.positive_pressure > 0
+    ? `${Math.round(cp.positive_pressure).toLocaleString('pt-BR')} Pa`
+    : '-- Pa';
+  const negativeLabel = cp.negative_pressure < 0
+    ? `${Math.round(cp.negative_pressure).toLocaleString('pt-BR')} Pa`
+    : '-- Pa';
+  const frameHtml = response.wx && response.jx
+    ? `
+      <div><dt>Wx necessario</dt><dd>${Math.ceil(response.wx).toLocaleString('pt-BR')} mm³</dd></div>
+      <div><dt>Jx necessario</dt><dd>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')} mm⁴</dd></div>
+    `
+    : '<div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>';
+
+  resultsSection.innerHTML = `
+    <h2>Resultados</h2>
+    <dl>
+      <div><dt>Pressao de ensaio</dt><dd>${pressureLabel}</dd></div>
+      <div><dt>Cp usado</dt><dd>${cpLabel}</dd></div>
+      <div><dt>Caso critico</dt><dd>${cp.governing.wind_angle} / ${cp.governing.zone}</dd></div>
+      <div><dt>Pressao positiva</dt><dd>${positiveLabel}</dd></div>
+      <div><dt>Pressao negativa</dt><dd>${negativeLabel}</dd></div>
+      ${frameHtml}
+    </dl>
+  `;
+
+  document.querySelector('#nbrPressureFinalValue').textContent = pressureLabel;
+}
+
+async function updateFactorSummaries() {
+  const s1 = getCheckedFactor('nbrS1');
+  const s2 = getCheckedFactor('nbrS2');
+  const s3 = getCheckedFactor('nbrS3');
+  const s2Preview = await requestS2Preview();
+  const s2Dimensions = [
+    getValue('#nbrBuildingWidthInput'),
+    getValue('#nbrBuildingLengthInput'),
+    getValue('#nbrBuildingHeightInput'),
+  ].filter(Boolean);
+
+  document.querySelector('#nbrS1Summary').textContent = s1.title || 'Escolha o fator topografico';
+  document.querySelector('#nbrS1Value').textContent = formatFactorValue(s1.value);
+  document.querySelector('#nbrS2Summary').textContent = s2Dimensions.length
+    ? `${s2.title || 'Categoria a definir'} - ${s2Dimensions.join(' x ')} m${s2Preview?.class ? ` - Classe ${s2Preview.class}` : ''}`
+    : s2.title || 'Categoria a definir';
+  document.querySelector('#nbrS2Value').textContent = formatFactorValue(s2Preview?.value) || '--';
+  document.querySelector('#nbrS3Summary').textContent = s3.title || 'Escolha o fator estatistico';
+  document.querySelector('#nbrS3Value').textContent = formatFactorValue(s3.value);
+  renderS2Preview(s2Preview);
+}
+
+function formatFactorValue(value) {
+  return value ? Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) : '';
+}
+
+async function requestS2Preview() {
+  const s2 = getCheckedFactor('nbrS2');
+  const height = getValue('#nbrBuildingHeightInput');
+
+  if (!s2.value || !height) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(s2PreviewUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        categoria: s2.value,
+        altura: height,
+      }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar S2:', error);
+    return null;
+  }
+}
+
+function renderS2Preview(result = null) {
+  const classPreview = document.querySelector('#nbrS2ClassPreview');
+  const meteorPreview = document.querySelector('#nbrS2MeteorPreview');
+  const gustPreview = document.querySelector('#nbrS2GustPreview');
+  const resultPreview = document.querySelector('#nbrS2ResultPreview');
+
+  if (!classPreview || !meteorPreview || !gustPreview || !resultPreview) {
+    return;
+  }
+
+  classPreview.textContent = result?.class ? `Classe ${result.class}` : 'Informe a altura';
+  meteorPreview.textContent = result?.meteorological
+    ? `Bm ${formatDecimal(result.meteorological.bm)} / p ${formatDecimal(result.meteorological.p, 3)}`
+    : '--';
+  gustPreview.textContent = result?.gust_factor ? `Fr ${formatDecimal(result.gust_factor)}` : '--';
+  resultPreview.textContent = result?.value ? formatFactorValue(result.value) : '--';
+}
+
+function formatDecimal(value, maximumFractionDigits = 2) {
+  return Number(value).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits,
+  });
+}
+
+function setPressureDetailsCollapsed(isCollapsed) {
+  const panel = document.querySelector('#nbrPressurePanel');
+  const button = document.querySelector('#togglePressureDetailsBtn');
+
+  panel.classList.toggle('is-collapsed', isCollapsed);
+  button.textContent = isCollapsed ? 'Editar parametros' : 'Minimizar';
+}
+
+async function prepareNbrCalculation() {
   if (!maps.nbr.marker || !maps.nbr.v0) {
     alert('Por favor, selecione um local no mapa para definir V0.');
     return;
   }
 
-  renderNbrDraftResult();
+  const payload = getNbrPayload();
+
+  try {
+    const response = await fetch(nbrCalcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || 'Erro ao calcular pela NBR 6123.');
+      return;
+    }
+
+    renderNbrCalculatedResult(data);
+    setPressureDetailsCollapsed(true);
+  } catch (error) {
+    console.error('Erro ao calcular NBR 6123:', error);
+    alert('Não foi possível calcular agora.');
+  }
 }
 
 async function calculateManualPressure() {
@@ -377,6 +628,16 @@ document.querySelector('#nbrAddressInput')?.addEventListener('keydown', (event) 
 document.querySelector('#generateJsonBtn')?.addEventListener('click', calculateByLocation);
 document.querySelector('#manualCalculateBtn')?.addEventListener('click', calculateManualPressure);
 document.querySelector('#nbrCalculateBtn')?.addEventListener('click', prepareNbrCalculation);
-document.querySelector('#nbrS1Select')?.addEventListener('change', renderNbrDraftResult);
-document.querySelector('#nbrS2Select')?.addEventListener('change', renderNbrDraftResult);
-document.querySelector('#nbrS3Select')?.addEventListener('change', renderNbrDraftResult);
+document.querySelector('#togglePressureDetailsBtn')?.addEventListener('click', () => {
+  const panel = document.querySelector('#nbrPressurePanel');
+  setPressureDetailsCollapsed(!panel.classList.contains('is-collapsed'));
+});
+document.querySelectorAll('input[name="nbrS1"], input[name="nbrS2"], input[name="nbrS3"]').forEach((input) => {
+  input.addEventListener('change', markFactorDialogsDirty);
+});
+document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {
+  input.addEventListener('input', markFactorDialogsDirty);
+});
+
+updateFactorSummaries();
+setPressureDetailsCollapsed(false);
