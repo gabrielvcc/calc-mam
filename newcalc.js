@@ -401,6 +401,7 @@ function getNbrPayload() {
     s2_altura: getValue('#nbrBuildingHeightInput'),
     s3: s3.value,
     s3_titulo: s3.title,
+    s3_vedacao: document.querySelector('#nbrS3SealingCheckbox')?.checked || false,
   };
 
   if (marker) {
@@ -482,12 +483,25 @@ async function updateFactorSummaries() {
     : s2.title || 'Categoria a definir';
   document.querySelector('#nbrS2Value').textContent = formatFactorValue(s2Preview?.value) || '--';
   document.querySelector('#nbrS3Summary').textContent = s3.title || 'Escolha o fator estatistico';
-  document.querySelector('#nbrS3Value').textContent = formatFactorValue(s3.value);
+  document.querySelector('#nbrS3Summary').textContent += document.querySelector('#nbrS3SealingCheckbox')?.checked
+    ? ' - vedações 0,92 x S3'
+    : '';
+  document.querySelector('#nbrS3Value').textContent = formatFactorValue(getEffectiveS3Value(s3.value));
   renderS2Preview(s2Preview);
 }
 
 function formatFactorValue(value) {
   return value ? Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) : '';
+}
+
+function getEffectiveS3Value(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return '';
+  }
+
+  return document.querySelector('#nbrS3SealingCheckbox')?.checked ? numericValue * 0.92 : numericValue;
 }
 
 async function requestS2Preview() {
@@ -635,6 +649,7 @@ document.querySelector('#togglePressureDetailsBtn')?.addEventListener('click', (
 document.querySelectorAll('input[name="nbrS1"], input[name="nbrS2"], input[name="nbrS3"]').forEach((input) => {
   input.addEventListener('change', markFactorDialogsDirty);
 });
+document.querySelector('#nbrS3SealingCheckbox')?.addEventListener('change', markFactorDialogsDirty);
 document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {
   input.addEventListener('input', markFactorDialogsDirty);
 });

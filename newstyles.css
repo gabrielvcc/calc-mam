@@ -673,6 +673,10 @@ dialog::backdrop {
   gap: 10px;
 }
 
+.s3-option-grid .option-card {
+  min-height: 104px;
+}
+
 .option-card {
   min-height: 74px;
   display: grid;
@@ -741,6 +745,39 @@ dialog::backdrop {
   width: 64px;
   color: var(--blue-dark);
   text-align: right;
+}
+
+.note-toggle {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--light-gray);
+}
+
+.note-toggle input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--blue);
+}
+
+.note-toggle span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.note-box {
+  padding: 12px 14px;
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+  background: #f7fbfd;
+  color: var(--medium-gray);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .factor-layout {

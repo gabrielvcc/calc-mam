@@ -171,7 +171,7 @@
                   <button class="factor-summary" type="button" data-dialog="s3Dialog">
                     <span>
                       <strong>S3</strong>
-                      <small id="nbrS3Summary">Grupo 2 - edificações comuns</small>
+                    <small id="nbrS3Summary">Grupo 3 - edificações usuais</small>
                     </span>
                     <b id="nbrS3Value">1,0</b>
                   </button>
@@ -357,12 +357,21 @@
         <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
       </div>
 
-      <div class="option-grid">
-        <label class="option-card"><input type="radio" name="nbrS3" value="1.10" data-title="Grupo 1 - alta seguranca"><span><strong>Grupo 1 - alta seguranca</strong><small>Edificacoes onde uma falha pode ter consequencias muito severas.</small></span><b>1,10</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="1.00" data-title="Grupo 2 - edificacoes comuns" checked><span><strong>Grupo 2 - edificacoes comuns</strong><small>Uso geral, residencial, comercial e industrial usual.</small></span><b>1,00</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="0.95" data-title="Grupo 3 - baixo risco humano"><span><strong>Grupo 3 - baixo risco humano</strong><small>Construcoes com menor permanencia de pessoas.</small></span><b>0,95</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="0.88" data-title="Grupo 4 - estruturas temporarias"><span><strong>Grupo 4 - estruturas temporarias</strong><small>Estruturas com vida util reduzida ou uso temporario.</small></span><b>0,88</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="0.83" data-title="Grupo 5 - estruturas provisórias"><span><strong>Grupo 5 - estruturas provisorias</strong><small>Casos de menor permanencia e menor exposicao ao risco.</small></span><b>0,83</b></label>
+      <div class="option-grid s3-option-grid">
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.11" data-title="Grupo 1"><span><strong>Grupo 1</strong><small>Estruturas cuja ruina total ou parcial pode afetar a seguranca ou possibilidade de socorro a pessoas apos uma tempestade destrutiva, como hospitais, quarteis de bombeiros e de forcas de seguranca, edificios de centrais de controle etc. Pontes rodoviarias e ferroviarias. Estruturas que abriguem substancias inflamaveis, toxicas e/ou explosivas. Vedacoes das edificacoes do grupo 1.</small></span><b>1,11</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.06" data-title="Grupo 2"><span><strong>Grupo 2</strong><small>Estruturas cuja ruina represente substancial risco a vida humana, particularmente a pessoas em aglomeracoes, criancas e jovens, incluindo edificacoes com capacidade de aglomeracao de mais de 300 pessoas em um mesmo ambiente, creches com capacidade maior que 150 pessoas, escolas com capacidade maior que 250 pessoas. Vedacoes das edificacoes do grupo 2.</small></span><b>1,06</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.00" data-title="Grupo 3" checked><span><strong>Grupo 3</strong><small>Edificacoes para residencias, hoteis, comercio e industrias. Estruturas ou elementos estruturais desmontaveis com vistas a reutilizacao. Vedacoes das edificacoes do grupo 3.</small></span><b>1,00</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.95" data-title="Grupo 4"><span><strong>Grupo 4</strong><small>Edificacoes nao destinadas a ocupacao humana, como depositos e silos, e sem circulacao de pessoas no entorno. Vedacoes das edificacoes do grupo 4.</small></span><b>0,95</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.83" data-title="Grupo 5"><span><strong>Grupo 5</strong><small>Edificacoes temporarias nao reutilizaveis. Estruturas dos grupos 1 a 4 durante a construcao, fator aplicavel em prazo maximo de 2 anos. Vedacoes das edificacoes do grupo 5.</small></span><b>0,83</b></label>
+      </div>
+
+      <label class="note-toggle">
+        <input type="checkbox" id="nbrS3SealingCheckbox">
+        <span>Projeto de vedações: usar 0,92 x S3</span>
+      </label>
+
+      <div class="note-box">
+        NOTA: Exclusivamente para o projeto das vedações, permite-se que a velocidade característica seja calculada com o fator 0,92 x S3, em vez de S3.
       </div>
 
       <button class="primary-btn dialog-action" type="button" data-apply-factor="s3Dialog">Aplicar</button>

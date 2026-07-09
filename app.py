@@ -245,6 +245,10 @@ def calculate_dynamic_pressure(v0, s1, s2, s3):
     vk = float(v0) * float(s1) * float(s2) * float(s3)
     return 0.613 * vk**2
 
+def get_effective_s3(s3, use_sealing_factor=False):
+    value = float(s3)
+    return value * 0.92 if use_sealing_factor else value
+
 def add_frame_result(response, data, pressao_ensaio):
     if not all(key in data and data[key] for key in ("larguratotal", "quantidadefol", "alturafol")):
         return
@@ -321,7 +325,9 @@ def calculate_nbr6123():
             return jsonify({"error": "V0 não definido para a região encontrada"}), 400
 
         s2_result = calculate_s2(data["s2_categoria"], data["s2_altura"])
-        q = calculate_dynamic_pressure(v0, data["s1"], s2_result["value"], data["s3"])
+        use_sealing_factor = bool(data.get("s3_vedacao"))
+        s3_effective = get_effective_s3(data["s3"], use_sealing_factor)
+        q = calculate_dynamic_pressure(v0, data["s1"], s2_result["value"], s3_effective)
         cp_result = calculate_cp_envelope(data["s2_largura_1"], data["s2_largura_2"], data["s2_altura"], q)
         pressao_ensaio = cp_result["test_pressure"]
 
@@ -330,7 +336,11 @@ def calculate_nbr6123():
             "v0": v0,
             "s1": float(data["s1"]),
             "s2": s2_result,
-            "s3": float(data["s3"]),
+            "s3": {
+                "base": float(data["s3"]),
+                "effective": s3_effective,
+                "sealing_factor_applied": use_sealing_factor,
+            },
             "q": q,
             "cp": cp_result,
             "pressao_ensaio": pressao_ensaio,
