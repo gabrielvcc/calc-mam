@@ -89,7 +89,7 @@ body {
     padding: 10px;
     margin-bottom: 10px;
     border-radius: 5px;
-    border: 1px solid #ccc;
+    border: 1px solid s#ccc;
 }
 
 button {
@@ -158,4 +158,51 @@ button:hover {
 
 .info-button i {
     font-size: 22px;
+}
+
+.method-selector{
+
+    display:flex;
+    margin-top:15px;
+    margin-bottom:15px;
+
+    border-radius:8px;
+    overflow:hidden;
+
+    border:1px solid #cfd8dc;
+
+}
+
+.method-btn{
+
+    flex:1;
+
+    border:none;
+
+    padding:12px;
+
+    background:#f2f2f2;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+    color:#555;
+
+    font-weight:bold;
+
+}
+
+.method-btn:hover{
+
+    background:#e3f2fd;
+
+}
+
+.method-btn.active{
+
+    background:#009CDA;
+
+    color:white;
+
 }

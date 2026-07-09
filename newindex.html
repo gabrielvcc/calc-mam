@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de resistência de perfis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="newstyles.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+  <header id="top-bar">
+    <a class="brand" href="#" aria-label="Voltar para inicio">
+      <img src="favicon.png" alt="">
+      <div>
+        <strong>Calculadora de Resistência de Perfis de Alumínio</strong>
+        <span>NBR 6123</span>
+      </div>
+    </a>
+
+    <nav class="top-nav" aria-label="Menu principal">
+      <button class="top-btn" type="button" data-dialog="aboutDialog">About</button>
+      <a class="top-btn ghost" href="/normas">Normas</a>
+    </nav>
+  </header>
+
+  <div id="main-container">
+    
+    <aside id="sidebar" aria-label="Barra lateral"><!--
+      <h3>Projeto</h3>
+
+      <div class="sidebar-empty">
+        <div class="sidebar-icon"></div>
+        <p>Espaco reservado para ferramentas, historico ou configuracoes.</p>
+      </div>-->
+    </aside>
+    
+    <main id="content-area">
+      <section class="home-view view active" id="homeView" aria-labelledby="homeTitle">
+        <div class="home-heading">
+          <p class="eyebrow">Escolha o fluxo de calculo</p>
+          <h1 id="homeTitle">Cálculo de pressão de vento</h1>
+        </div>
+
+        <div class="choice-grid" aria-label="Tipos de calculo">
+          <article class="choice-panel panel-tabled" data-target="tabledView">
+            <div class="panel-preview" aria-hidden="true"></div>
+            <div class="choice-content">
+              <span class="choice-kicker">Tabela pronta da norma</span>
+              <h2>NBR 6123 Tabelado</h2>
+              <p>Fluxo rapido para selecionar parametros tabelados e seguir para a esquadria.</p>
+              <button class="primary-btn open-view" type="button" data-target="tabledView">Abrir calculo</button>
+            </div>
+          </article>
+
+          <article class="choice-panel panel-nbr" data-target="nbrView">
+            <div class="panel-preview" aria-hidden="true"></div>
+            <div class="choice-content">
+              <span class="choice-kicker">Calculo completo</span>
+              <h2>NBR 6123</h2>
+              <p>Mapa, velocidade basica, fatores S1, S2 e S3 em uma tela mais detalhada.</p>
+              <button class="primary-btn open-view" type="button" data-target="nbrView">Abrir calculo</button>
+            </div>
+          </article>
+
+          <article class="choice-panel panel-manual" data-target="manualView">
+            <div class="panel-preview" aria-hidden="true"></div>
+            <div class="choice-content">
+              <span class="choice-kicker">Entrada direta</span>
+              <h2>Manualmente</h2>
+              <p>Informe a pressao conhecida e siga para a etapa de esquadria.</p>
+              <button class="primary-btn open-view" type="button" data-target="manualView">Abrir calculo</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="calc-view view" id="tabledView" aria-labelledby="tabledTitle">
+        <div class="view-header">
+          <button class="icon-btn back-btn" type="button" aria-label="Voltar">&lsaquo;</button>
+          <div>
+            <p class="eyebrow">Tabela pronta</p>
+            <h1 id="tabledTitle">NBR 6123 Tabelado</h1>
+          </div>
+        </div>
+
+        <div class="workspace with-map">
+          <form class="form-column">
+            <section class="tool-panel">
+              <h2>Pressao do vento</h2>
+              <div class="input-grid">
+                <label for="pavimentosInput">Pavimentos<input id="pavimentosInput" type="number" min="1" placeholder="1 a 30 no máx."></label>
+              </div>
+            </section>
+
+            <section class="tool-panel">
+              <h2>Esquadria</h2>
+              <div class="input-grid">
+                <label for="larguraInput">Largura (mm)<input id="larguraInput" type="number" step="1" placeholder="Largura total"></label>
+                <label for="alturafolInput">Altura (mm)<input id="alturafolInput" type="number" step="1" placeholder="Altura total"></label>
+                <label for="quantidadefolInput">Folhas<input id="quantidadefolInput" type="number" min="1" placeholder="Qtd. de folhas"></label>
+              </div>
+              <button class="primary-btn wide calc-btn" id="generateJsonBtn" type="button">Calcular</button>
+            </section>
+          </form>
+
+          <section class="map-panel">
+            <div class="map-search">
+              <label for="addressInput">Endereco</label>
+              <div class="field-row">
+                <input id="addressInput" type="text" placeholder="Digite uma cidade ou endereco">
+                <button class="secondary-btn" id="searchBtn" type="button">Buscar</button>
+              </div>
+            </div>
+            <div id="mapid"></div>
+          </section>
+
+          <aside class="result-panel" id="results">
+            <h2>Resultados</h2>
+          </aside>
+        </div>
+      </section>
+
+      <section class="calc-view view" id="nbrView" aria-labelledby="nbrTitle">
+        <div class="view-header">
+          <button class="icon-btn back-btn" type="button" aria-label="Voltar">&lsaquo;</button>
+          <div>
+            <p class="eyebrow">Calculo completo</p>
+            <h1 id="nbrTitle">NBR 6123</h1>
+          </div>
+        </div>
+
+        <div class="workspace with-map">
+          <form class="form-column">
+            <section class="tool-panel">
+              <h2>Pressao do vento</h2>
+              <div class="input-grid">
+                <label for="nbrV0Input">V0 (m/s)<input id="nbrV0Input" type="number" step="0.1" placeholder="Selecione no mapa" readonly></label>
+                <label for="nbrRegionInput">Regiao<input id="nbrRegionInput" type="text" placeholder="Selecione no mapa" readonly></label>
+                <label for="nbrS1Select">S1
+                  <select id="nbrS1Select">
+                    <option value="1.0">Terreno plano ou fracamente acidentado</option>
+                    <option value="1.1">Taludes ou morros</option>
+                    <option value="0.9">Vales profundos protegidos</option>
+                  </select>
+                </label>
+                <label for="nbrS2Select">S2
+                  <select id="nbrS2Select">
+                    <option value="1.0">Definir criterio S2</option>
+                  </select>
+                </label>
+                <label for="nbrS3Select">S3
+                  <select id="nbrS3Select">
+                    <option value="1.0">Definir criterio S3</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="tool-panel">
+              <h2>Esquadria</h2>
+              <div class="input-grid">
+                <label for="nbrLarguraInput">Largura (mm)<input id="nbrLarguraInput" type="number" step="1" placeholder="Largura total"></label>
+                <label for="nbrAlturaInput">Altura (mm)<input id="nbrAlturaInput" type="number" step="1" placeholder="Altura total"></label>
+                <label for="nbrFolhasInput">Folhas<input id="nbrFolhasInput" type="number" min="1" placeholder="Qtd. de folhas"></label>
+              </div>
+              <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Preparar calculo</button>
+            </section>
+          </form>
+
+          <section class="map-panel">
+            <div class="map-search">
+              <label for="nbrAddressInput">Endereco</label>
+              <div class="field-row">
+                <input id="nbrAddressInput" type="text" placeholder="Digite uma cidade ou endereco">
+                <button class="secondary-btn" id="nbrSearchBtn" type="button">Buscar</button>
+              </div>
+            </div>
+            <div id="nbrMapid"></div>
+          </section>
+
+          <aside class="result-panel" id="nbrResults">
+            <h2>Resultados</h2>
+            <dl>
+              <div><dt>V0</dt><dd>Selecione um ponto no mapa</dd></div>
+              <div><dt>S1</dt><dd>1,0</dd></div>
+              <div><dt>Esquadria</dt><dd>Nao calculada</dd></div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="calc-view view" id="manualView" aria-labelledby="manualTitle">
+        <div class="view-header">
+          <button class="icon-btn back-btn" type="button" aria-label="Voltar">&lsaquo;</button>
+          <div>
+            <p class="eyebrow">Entrada direta</p>
+            <h1 id="manualTitle">Manualmente</h1>
+          </div>
+        </div>
+
+        <div class="workspace manual-workspace">
+          <form class="form-column">
+            <section class="tool-panel">
+              <h2>Pressao</h2>
+              <label for="manualPressaoInput">Pressao informada (Pa)<input id="manualPressaoInput" type="number" step="0.01" placeholder="Ex: 850"></label>
+            </section>
+
+            <section class="tool-panel">
+              <h2>Esquadria</h2>
+              <div class="input-grid">
+                <label for="manualLarguraInput">Largura (mm)<input id="manualLarguraInput" type="number" step="1" placeholder="Largura total"></label>
+                <label for="manualAlturaInput">Altura (mm)<input id="manualAlturaInput" type="number" step="1" placeholder="Altura"></label>
+                <label for="manualFolhasInput">Folhas<input id="manualFolhasInput" type="number" min="1" placeholder="Qtd. Folhas"></label>
+              </div>
+              <button class="primary-btn wide calc-btn" id="manualCalculateBtn" type="button">Calcular</button>
+            </section>
+          </form>
+
+          <aside class="result-panel manual-result" id="manualResults">
+            <h2>Resultados</h2>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="aboutDialog">
+    <div class="dialog-content">
+      <h2>Calculadora NBR 6123</h2>
+      <p>Base visual nova para organizar os fluxos de pressao do vento e esquadria.</p>
+      <button class="primary-btn" type="button" data-close-dialog>Fechar</button>
+    </div>
+  </dialog>
+
+  <script src="newcalc.js"></script>
+</body>
+</html>

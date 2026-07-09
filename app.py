@@ -25,6 +25,14 @@ pressao_map = {
     '5': {2: 950, 5: 1180, 10: 1400, 20: 1660, 30: 1820},
 }
 
+v0_map = {
+    '1': 30,
+    '2': 35,
+    '3': 40,
+    '4': 45,
+    '5': 50,
+}
+
 def calcular_pressao(region, pavimentos):
     if region in pressao_map:
         pavimentos_disponiveis = sorted(pressao_map[region].keys())
@@ -49,6 +57,35 @@ def calcular_jx(pressao_ensaio, largurafol, alturafol, melast):
     jx2 = (5 * pressao_ensaio * 1e-6 * largurafol * alturafol**4) / (384 * melast * 20)
     return max(jx1, jx2)
 
+def encontrar_regiao(latitude, longitude):
+    point = Point(longitude, latitude)
+
+    for _, row in gdf.iterrows():
+        if row['geometry'].contains(point):
+            return row['pressão_vento']
+
+    return None
+
+@app.route('/regiaovento', methods=['POST'])
+def get_wind_region():
+    data = request.get_json()
+
+    try:
+        latitude = data['latitude']
+        longitude = data['longitude']
+    except KeyError as e:
+        return jsonify({"error": f"Dados faltando: {e}"}), 400
+
+    region = encontrar_regiao(latitude, longitude)
+
+    if not region:
+        return jsonify({"error": "Ponto fora de todas as regiões"}), 404
+
+    return jsonify({
+        "regiao": region,
+        "v0": v0_map.get(region),
+    })
+
 @app.route('/pressaovento', methods=['POST'])
 def get_wind_pressure():
     data = request.get_json()
@@ -66,19 +103,15 @@ def get_wind_pressure():
             latitude = data['latitude']
             longitude = data['longitude']
             pavimentos = int(data['pavimentos'])
-            point = Point(longitude, latitude)
         except (KeyError, ValueError) as e:
             return jsonify({"error": f"Dados faltando ou inválidos: {e}"}), 400
 
-        region_found = False
-        for _, row in gdf.iterrows():
-            if row['geometry'].contains(point):
-                pressao_ensaio = calcular_pressao(row['pressão_vento'], pavimentos)
-                region_found = True
-                break
+        region = encontrar_regiao(latitude, longitude)
         
-        if not region_found:
+        if not region:
             return jsonify({"error": "Ponto fora de todas as regiões"}), 404
+
+        pressao_ensaio = calcular_pressao(region, pavimentos)
 
     # Se a pressão foi calculada ou fornecida, prossegue
     if pressao_ensaio is not None and isinstance(pressao_ensaio, (int, float)):
@@ -110,3 +143,4 @@ def get_wind_pressure():
 def health_check():
     """Rota pro UptimeRobot"""
     return "Online!", 200
+
