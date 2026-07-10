@@ -120,17 +120,17 @@ alloy_properties = {
     "6060-T5": {
         "lrt": 150,
         "melast": 70000,
-        "densidade": 000270,
+        "densidade": 0.00270,
     },
     "6063-T6": {
         "lrt": 180,
         "melast": 70000,
-        "densidade": 000270,
+        "densidade": 0.00270,
     },
     "6351-T6": {
         "lrt": 290,
         "melast": 70000,
-        "densidade": 000271,
+        "densidade": 0.00271,
     },
 }
 
