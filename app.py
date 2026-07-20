@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import geopandas as gpd
 from shapely.geometry import Point
+import math
 # App Spotify
 from dotenv import load_dotenv
 import os
@@ -115,6 +116,73 @@ facade_cpe_table_nbr_2023 = {
 }
 
 internal_pressure_cases = [0.2, -0.3]
+
+glass_equivalence = {
+    "insulated": {
+        "two_glasses": 1.6,
+    },
+    "laminated": {
+        "two_glasses": 1.3,
+    },
+    "monolithic": {
+        "float": 1.0,
+        "armado": 1.3,
+        "impresso": 1.1,
+        "temperado": 0.77,
+    },
+}
+
+glass_types = {
+    "monolitico_float": {
+        "label": "Monolítico float",
+        "system": "monolithic",
+        "monolithic_factor": "float",
+        "minimum_pane_thickness": 3,
+    },
+    "monolitico_impresso": {
+        "label": "Monolítico impresso",
+        "system": "monolithic",
+        "monolithic_factor": "impresso",
+        "minimum_pane_thickness": 3,
+    },
+    "monolitico_armado": {
+        "label": "Monolítico armado",
+        "system": "monolithic",
+        "monolithic_factor": "armado",
+    },
+    "monolitico_temperado": {
+        "label": "Monolítico temperado",
+        "system": "monolithic",
+        "monolithic_factor": "temperado",
+    },
+    "laminado_float_2": {
+        "label": "Laminado float - 2 vidros",
+        "system": "laminated",
+        "monolithic_factor": "float",
+        "panes": 2,
+        "minimum_pane_thickness": 3,
+    },
+    "insulado_float_2": {
+        "label": "Insulado float - 2 vidros",
+        "system": "insulated",
+        "monolithic_factor": "float",
+        "panes": 2,
+        "minimum_pane_thickness": 3,
+    },
+}
+
+glass_deflection_alpha_table_four_sides = [
+    (0.1, 2.1143),
+    (0.2, 2.1000),
+    (0.3, 2.1000),
+    (0.4, 1.8714),
+    (0.5, 1.6429),
+    (0.6, 1.4143),
+    (0.7, 1.1857),
+    (0.8, 0.9714),
+    (0.9, 0.8000),
+    (1.0, 0.6571),
+]
 
 alloy_properties = {
     "6060-T5": {
@@ -267,6 +335,124 @@ def get_effective_s3(s3, use_sealing_factor=False):
     value = float(s3)
     return value * 0.92 if use_sealing_factor else value
 
+def interpolate_alpha_four_sides(ratio):
+    if ratio <= 0.1:
+        return 2.1143
+
+    if ratio >= 1:
+        return 0.6571
+
+    table = glass_deflection_alpha_table_four_sides
+
+    for index in range(len(table) - 1):
+        x1, y1 = table[index]
+        x2, y2 = table[index + 1]
+
+        if x1 <= ratio <= x2:
+            return y1 + ((ratio - x1) / (x2 - x1)) * (y2 - y1)
+
+    return table[-1][1]
+
+def calculate_glass_base_thickness(width_mm, height_mm, design_pressure):
+    width_m = float(width_mm) / 1000
+    height_m = float(height_mm) / 1000
+    pressure = float(design_pressure)
+
+    if min(width_m, height_m, pressure) <= 0:
+        raise ValueError("Dados do vidro inválidos")
+
+    larger_side = max(width_m, height_m)
+    smaller_side = min(width_m, height_m)
+    area = width_m * height_m
+    aspect_ratio = larger_side / smaller_side
+
+    if aspect_ratio <= 2.5:
+        e1 = math.sqrt((area * pressure) / 100)
+    else:
+        e1 = (smaller_side * math.sqrt(pressure)) / 6.3
+
+    return {
+        "e1": e1,
+        "larger_side_m": larger_side,
+        "smaller_side_m": smaller_side,
+        "area_m2": area,
+        "aspect_ratio": aspect_ratio,
+    }
+
+def calculate_glass_deflection_requirement(smaller_side_m, larger_side_m, design_pressure):
+    ratio = smaller_side_m / larger_side_m
+    alpha = interpolate_alpha_four_sides(ratio)
+    deflection_limit = min((smaller_side_m * 1000) / 60, 30)
+    required_ef = ((alpha * (float(design_pressure) / 1.5) * smaller_side_m**4) / deflection_limit) ** (1 / 3)
+
+    return {
+        "alpha": alpha,
+        "ratio": ratio,
+        "deflection_limit": deflection_limit,
+        "required_ef": required_ef,
+    }
+
+def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key):
+    glass_type = glass_types.get(glass_type_key, glass_types["monolitico_float"])
+    base = calculate_glass_base_thickness(width_mm, height_mm, design_pressure)
+    deflection = calculate_glass_deflection_requirement(
+        base["smaller_side_m"],
+        base["larger_side_m"],
+        design_pressure,
+    )
+    reduction_factor = 1.0
+    required_resistance_er = base["e1"] * reduction_factor
+    e3 = glass_equivalence["monolithic"][glass_type["monolithic_factor"]]
+    minimum_pane = glass_type.get("minimum_pane_thickness", 0)
+
+    if glass_type["system"] == "monolithic":
+        required_total = max(required_resistance_er * e3, deflection["required_ef"], minimum_pane)
+        panes = [required_total]
+        equivalent_resistance = required_total / e3
+        equivalent_deflection = required_total
+    elif glass_type["system"] == "laminated":
+        epsilon2 = glass_equivalence["laminated"]["two_glasses"]
+        required_sum_resistance = required_resistance_er * 0.9 * epsilon2 * e3
+        required_sum_deflection = deflection["required_ef"] * epsilon2
+        required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
+        pane = required_total / 2
+        panes = [pane, pane]
+        equivalent_resistance = required_total / (0.9 * epsilon2 * e3)
+        equivalent_deflection = required_total / epsilon2
+    elif glass_type["system"] == "insulated":
+        epsilon1 = glass_equivalence["insulated"]["two_glasses"]
+        required_sum_resistance = required_resistance_er * 0.9 * epsilon1 * e3
+        required_sum_deflection = deflection["required_ef"] * epsilon1
+        required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
+        pane = required_total / 2
+        panes = [pane, pane]
+        equivalent_resistance = required_total / (0.9 * epsilon1 * e3)
+        equivalent_deflection = required_total / epsilon1
+    else:
+        raise ValueError("Tipo de vidro não cadastrado")
+
+    calculated_deflection = deflection["alpha"] * (float(design_pressure) / 1.5) * base["smaller_side_m"]**4 / equivalent_deflection**3
+
+    return {
+        "tipo": glass_type["label"],
+        "sistema": glass_type["system"],
+        "espessura_minima": required_total,
+        "vidros": panes,
+        "largura_vidro": width_mm,
+        "altura_vidro": height_mm,
+        "pressao": float(design_pressure),
+        "e1": base["e1"],
+        "c": reduction_factor,
+        "e3": e3,
+        "eR": equivalent_resistance,
+        "eF": equivalent_deflection,
+        "alpha": deflection["alpha"],
+        "flecha": calculated_deflection,
+        "flecha_limite": deflection["deflection_limit"],
+        "relacao_l_L": deflection["ratio"],
+        "relacao_L_l": base["aspect_ratio"],
+    }
+
 def add_frame_result(response, data, pressao_ensaio):
     if not all(key in data and data[key] for key in ("larguratotal", "quantidadefol", "alturafol")):
         return
@@ -291,9 +477,11 @@ def add_frame_result(response, data, pressao_ensaio):
         raise ValueError("Propriedades da liga não cadastradas")
 
     largura_folha = largurafolha(larguratotal, quantidadefol)
+    glass_type = data.get("tipo_vidro", "monolitico_float")
     response.update({
         "wx": calcular_wx(pressao_ensaio, largura_folha, alturafol, lrt),
         "jx": calcular_jx(pressao_ensaio, largura_folha, alturafol, melast),
+        "vidro": calculate_glass_result(largura_folha, alturafol, pressao_ensaio, glass_type),
         "liga": {
             "nome": alloy_name,
             "lrt": lrt,
@@ -432,4 +620,3 @@ def get_wind_pressure():
 def health_check():
     """Rota pro UptimeRobot"""
     return "Online!", 200
-

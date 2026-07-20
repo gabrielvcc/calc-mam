@@ -109,6 +109,11 @@
                   <strong data-alloy-label>6060-T5</strong>
                 </button>
               </label>
+              <label class="alloy-field">Tipo de vidro
+                <button class="alloy-select" type="button" data-dialog="glassDialog">
+                  <strong data-glass-label>Monolítico float</strong>
+                </button>
+              </label>
               <button class="primary-btn wide calc-btn" id="generateJsonBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -196,6 +201,11 @@
                   <strong data-alloy-label>6060-T5</strong>
                 </button>
               </label>
+              <label class="alloy-field">Tipo de vidro
+                <button class="alloy-select" type="button" data-dialog="glassDialog">
+                  <strong data-glass-label>Monolítico float</strong>
+                </button>
+              </label>
               <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -247,6 +257,11 @@
               <label class="alloy-field">Liga do Alumínio
                 <button class="alloy-select" type="button" data-dialog="alloyDialog">
                   <strong data-alloy-label>6060-T5</strong>
+                </button>
+              </label>
+              <label class="alloy-field">Tipo de vidro
+                <button class="alloy-select" type="button" data-dialog="glassDialog">
+                  <strong data-glass-label>Monolítico float</strong>
                 </button>
               </label>
               <button class="primary-btn wide calc-btn" id="manualCalculateBtn" type="button">Calcular</button>
@@ -329,6 +344,69 @@
               <td>70000</td>
               <td>000271</td>
               <td><button class="secondary-btn alloy-option" type="button" data-alloy="6351-T6">Selecionar</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="glassDialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">NBR 7199</p>
+          <h2>Tipo de vidro</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div class="alloy-table-wrap">
+        <table class="alloy-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Composição considerada</th>
+              <th>Fator usado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Monolítico float</strong></td>
+              <td>1 vidro float</td>
+              <td>ε3 = 1,00</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="monolitico_float" data-glass-label="Monolítico float">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Monolítico impresso</strong></td>
+              <td>1 vidro impresso</td>
+              <td>ε3 = 1,10</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="monolitico_impresso" data-glass-label="Monolítico impresso">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Monolítico armado</strong></td>
+              <td>1 vidro armado</td>
+              <td>ε3 = 1,30</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="monolitico_armado" data-glass-label="Monolítico armado">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Monolítico temperado</strong></td>
+              <td>1 vidro temperado</td>
+              <td>ε3 = 0,77</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="monolitico_temperado" data-glass-label="Monolítico temperado">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Laminado float</strong></td>
+              <td>2 vidros float</td>
+              <td>ε2 = 1,30</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="laminado_float_2" data-glass-label="Laminado float - 2 vidros">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Insulado float</strong></td>
+              <td>2 vidros monolíticos float</td>
+              <td>ε1 = 1,60</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="insulado_float_2" data-glass-label="Insulado float - 2 vidros">Selecionar</button></td>
             </tr>
           </tbody>
         </table>

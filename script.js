@@ -33,6 +33,8 @@ const maps = {
 const factorDialogState = {};
 let lastNbrCalculation = null;
 let selectedAlloy = '6060-T5';
+let selectedGlassType = 'monolitico_float';
+let selectedGlassLabel = 'Monolítico float';
 
 function showView(viewId) {
   views.forEach((view) => {
@@ -347,6 +349,7 @@ function addFrameData(requestData, selectors) {
     requestData.quantidadefol = quantidadefol;
     requestData.alturafol = alturafol;
     requestData.liga = selectedAlloy;
+    requestData.tipo_vidro = selectedGlassType;
   }
 }
 
@@ -355,6 +358,15 @@ function setSelectedAlloy(alloy) {
 
   document.querySelectorAll('[data-alloy-label]').forEach((label) => {
     label.textContent = alloy;
+  });
+}
+
+function setSelectedGlass(button) {
+  selectedGlassType = button.dataset.glassType;
+  selectedGlassLabel = button.dataset.glassLabel;
+
+  document.querySelectorAll('[data-glass-label]').forEach((label) => {
+    label.textContent = selectedGlassLabel;
   });
 }
 
@@ -386,19 +398,34 @@ function displayResult(containerSelector, response) {
   const pressao = response.pressao_ensaio;
   const wx = response.wx;
   const jx = response.jx;
+  const vidro = response.vidro;
 
   const pressaoFormatada = typeof pressao === 'number' ? Math.round(pressao).toLocaleString('pt-BR') : pressao;
   const wxFormatado = formatNumber(wx, (value) => Math.ceil(value).toLocaleString('pt-BR'));
   const jxFormatado = formatNumber(jx, (value) => Number.parseInt(value, 10).toLocaleString('pt-BR'));
+  const vidroFormatado = vidro?.espessura_minima
+    ? `${formatGlassThickness(vidro.espessura_minima)} mm`
+    : 'N/A';
+  const vidroDescricao = vidro?.vidros?.length > 1
+    ? vidro.vidros.map((value) => formatGlassThickness(value)).join(' + ')
+    : vidro?.tipo || selectedGlassLabel;
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
       <div class="result-highlight"><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
+      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd></div>
       <div><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
       <div><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
     </dl>
   `;
+}
+
+function formatGlassThickness(value) {
+  return Number(value).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 async function calculateByLocation() {
@@ -486,6 +513,7 @@ function renderNbrCalculatedResult(response) {
   lastNbrCalculation = response;
   const frameHtml = response.wx && response.jx
     ? `
+      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${formatGlassThickness(response.vidro.espessura_minima)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd></div>
       <div><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
       <div><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
     `
@@ -505,6 +533,18 @@ function renderNbrCalculatedResult(response) {
 
   document.querySelector('#nbrPressureFinalValue').textContent = pressureLabel;
   document.querySelector('#calculationDetailsBtn')?.addEventListener('click', openCalculationDetails);
+}
+
+function getGlassCompositionLabel(glass) {
+  if (!glass?.vidros?.length) {
+    return selectedGlassLabel;
+  }
+
+  if (glass.vidros.length === 1) {
+    return glass.tipo;
+  }
+
+  return `${glass.tipo}: ${glass.vidros.map((value) => `${formatGlassThickness(value)} mm`).join(' + ')}`;
 }
 
 function detailItem(label, value) {
@@ -537,6 +577,7 @@ function openCalculationDetails() {
   const cp = lastNbrCalculation.cp;
   const s2 = lastNbrCalculation.s2;
   const s3 = lastNbrCalculation.s3;
+  const glass = lastNbrCalculation.vidro;
 
   content.innerHTML = `
     <section>
@@ -584,6 +625,22 @@ function openCalculationDetails() {
         ${detailItem('Maior absoluto', `${Math.round(lastNbrCalculation.pressao_ensaio).toLocaleString('pt-BR')} Pa`)}
       </dl>
     </section>
+
+    ${glass ? `
+      <section>
+        <h3>Vidro</h3>
+        <dl>
+          ${detailItem('Tabela / criterio', 'NBR 7199: item 4.7 - quatro lados apoiados')}
+          ${detailItem('Tipo', glass.tipo)}
+          ${detailItem('Dimensao do modulo', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
+          ${detailItem('e1', `${formatGlassThickness(glass.e1)} mm`)}
+          ${detailItem('eR', `${formatGlassThickness(glass.eR)} mm`)}
+          ${detailItem('eF', `${formatGlassThickness(glass.eF)} mm`)}
+          ${detailItem('Flecha', `${formatGlassThickness(glass.flecha)} mm / limite ${formatGlassThickness(glass.flecha_limite)} mm`)}
+          ${detailItem('Espessura minima', `${formatGlassThickness(glass.espessura_minima)} mm`)}
+        </dl>
+      </section>
+    ` : ''}
   `;
 
   dialog?.showModal();
@@ -794,7 +851,17 @@ document.querySelector('#nbrS1ManualInput')?.addEventListener('input', () => {
 document.querySelector('#nbrS3SealingCheckbox')?.addEventListener('change', markFactorDialogsDirty);
 document.querySelectorAll('.alloy-option').forEach((button) => {
   button.addEventListener('click', () => {
+    if (!button.dataset.alloy) {
+      return;
+    }
+
     setSelectedAlloy(button.dataset.alloy);
+    button.closest('dialog')?.close('apply');
+  });
+});
+document.querySelectorAll('.glass-option').forEach((button) => {
+  button.addEventListener('click', () => {
+    setSelectedGlass(button);
     button.closest('dialog')?.close('apply');
   });
 });
@@ -805,4 +872,7 @@ document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbr
 updateFactorSummaries();
 updateS1SlopeVisibility();
 setSelectedAlloy(selectedAlloy);
+document.querySelectorAll('[data-glass-label]').forEach((label) => {
+  label.textContent = selectedGlassLabel;
+});
 setPressureDetailsCollapsed(false);
