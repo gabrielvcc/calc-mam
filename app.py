@@ -184,6 +184,9 @@ glass_deflection_alpha_table_four_sides = [
     (1.0, 0.6571),
 ]
 
+monolithic_nominal_thicknesses = [4, 6, 8, 10, 12, 14, 16]
+composed_nominal_thicknesses = [6, 8, 10, 12, 14, 16]
+
 alloy_properties = {
     "6060-T5": {
         "lrt": 150,
@@ -392,6 +395,15 @@ def calculate_glass_deflection_requirement(smaller_side_m, larger_side_m, design
         "required_ef": required_ef,
     }
 
+def next_nominal_glass_thickness(required_total, is_composed):
+    catalog = composed_nominal_thicknesses if is_composed else monolithic_nominal_thicknesses
+
+    for thickness in catalog:
+        if thickness >= required_total:
+            return thickness
+
+    return None
+
 def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key):
     glass_type = glass_types.get(glass_type_key, glass_types["monolitico_float"])
     base = calculate_glass_base_thickness(width_mm, height_mm, design_pressure)
@@ -407,27 +419,33 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
 
     if glass_type["system"] == "monolithic":
         required_total = max(required_resistance_er * e3, deflection["required_ef"], minimum_pane)
-        panes = [required_total]
-        equivalent_resistance = required_total / e3
-        equivalent_deflection = required_total
+        nominal_total = next_nominal_glass_thickness(required_total, False)
+        checked_total = nominal_total or required_total
+        panes = [checked_total]
+        equivalent_resistance = checked_total / e3
+        equivalent_deflection = checked_total
     elif glass_type["system"] == "laminated":
         epsilon2 = glass_equivalence["laminated"]["two_glasses"]
         required_sum_resistance = required_resistance_er * 0.9 * epsilon2 * e3
         required_sum_deflection = deflection["required_ef"] * epsilon2
         required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
-        pane = required_total / 2
+        nominal_total = next_nominal_glass_thickness(required_total, True)
+        checked_total = nominal_total or required_total
+        pane = checked_total / 2
         panes = [pane, pane]
-        equivalent_resistance = required_total / (0.9 * epsilon2 * e3)
-        equivalent_deflection = required_total / epsilon2
+        equivalent_resistance = checked_total / (0.9 * epsilon2 * e3)
+        equivalent_deflection = checked_total / epsilon2
     elif glass_type["system"] == "insulated":
         epsilon1 = glass_equivalence["insulated"]["two_glasses"]
         required_sum_resistance = required_resistance_er * 0.9 * epsilon1 * e3
         required_sum_deflection = deflection["required_ef"] * epsilon1
         required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
-        pane = required_total / 2
+        nominal_total = next_nominal_glass_thickness(required_total, True)
+        checked_total = nominal_total or required_total
+        pane = checked_total / 2
         panes = [pane, pane]
-        equivalent_resistance = required_total / (0.9 * epsilon1 * e3)
-        equivalent_deflection = required_total / epsilon1
+        equivalent_resistance = checked_total / (0.9 * epsilon1 * e3)
+        equivalent_deflection = checked_total / epsilon1
     else:
         raise ValueError("Tipo de vidro não cadastrado")
 
@@ -436,7 +454,11 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
     return {
         "tipo": glass_type["label"],
         "sistema": glass_type["system"],
-        "espessura_minima": required_total,
+        "espessura_calculada": required_total,
+        "espessura_minima": checked_total,
+        "espessura_nominal": nominal_total,
+        "fora_catalogo": nominal_total is None,
+        "catalogo": composed_nominal_thicknesses if glass_type["system"] != "monolithic" else monolithic_nominal_thicknesses,
         "vidros": panes,
         "largura_vidro": width_mm,
         "altura_vidro": height_mm,

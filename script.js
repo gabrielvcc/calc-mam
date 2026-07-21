@@ -363,7 +363,7 @@ function setSelectedAlloy(alloy) {
 
 function setSelectedGlass(button) {
   selectedGlassType = button.dataset.glassType;
-  selectedGlassLabel = button.dataset.glassLabel;
+  selectedGlassLabel = button.dataset.glassName;
 
   document.querySelectorAll('[data-glass-label]').forEach((label) => {
     label.textContent = selectedGlassLabel;
@@ -404,7 +404,7 @@ function displayResult(containerSelector, response) {
   const wxFormatado = formatNumber(wx, (value) => Math.ceil(value).toLocaleString('pt-BR'));
   const jxFormatado = formatNumber(jx, (value) => Number.parseInt(value, 10).toLocaleString('pt-BR'));
   const vidroFormatado = vidro?.espessura_minima
-    ? `${formatGlassThickness(vidro.espessura_minima)} mm`
+    ? formatGlassResult(vidro)
     : 'N/A';
   const vidroDescricao = vidro?.vidros?.length > 1
     ? vidro.vidros.map((value) => formatGlassThickness(value)).join(' + ')
@@ -426,6 +426,14 @@ function formatGlassThickness(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatGlassResult(glass) {
+  if (glass.fora_catalogo) {
+    return `> ${Math.max(...glass.catalogo).toLocaleString('pt-BR')} mm`;
+  }
+
+  return `${Number(glass.espessura_minima).toLocaleString('pt-BR')} mm`;
 }
 
 async function calculateByLocation() {
@@ -513,7 +521,7 @@ function renderNbrCalculatedResult(response) {
   lastNbrCalculation = response;
   const frameHtml = response.wx && response.jx
     ? `
-      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${formatGlassThickness(response.vidro.espessura_minima)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd></div>
+      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd></div>
       <div><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
       <div><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
     `
@@ -634,10 +642,11 @@ function openCalculationDetails() {
           ${detailItem('Tipo', glass.tipo)}
           ${detailItem('Dimensao do modulo', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
           ${detailItem('e1', `${formatGlassThickness(glass.e1)} mm`)}
+          ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
           ${detailItem('eR', `${formatGlassThickness(glass.eR)} mm`)}
           ${detailItem('eF', `${formatGlassThickness(glass.eF)} mm`)}
           ${detailItem('Flecha', `${formatGlassThickness(glass.flecha)} mm / limite ${formatGlassThickness(glass.flecha_limite)} mm`)}
-          ${detailItem('Espessura minima', `${formatGlassThickness(glass.espessura_minima)} mm`)}
+          ${detailItem('Espessura comercial', formatGlassResult(glass))}
         </dl>
       </section>
     ` : ''}
