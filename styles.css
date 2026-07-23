@@ -522,6 +522,17 @@ select:focus {
   margin-top: 16px;
 }
 
+.factor-instruction {
+  margin: 0 0 2px;
+  padding: 9px 10px;
+  border: 1px solid rgba(0, 156, 218, 0.18);
+  border-radius: 6px;
+  background: #f7fbfd;
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .factor-summary {
   width: 100%;
   min-height: 62px;
@@ -530,12 +541,23 @@ select:focus {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(0, 156, 218, 0.26);
   border-radius: 8px;
-  background: var(--white);
+  background:
+    linear-gradient(135deg, rgba(0, 156, 218, 0.07), transparent 62%),
+    var(--white);
   color: var(--dark-gray);
+  cursor: pointer;
   text-align: left;
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+
+.factor-summary::after {
+  content: "›";
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .factor-summary:hover {
@@ -558,6 +580,19 @@ select:focus {
   color: var(--medium-gray);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.factor-summary em {
+  width: fit-content;
+  margin-top: 2px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(0, 156, 218, 0.10);
+  color: var(--blue);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .factor-summary b {

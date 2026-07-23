@@ -165,8 +165,17 @@ glass_types = {
     "insulado_float_2": {
         "label": "Insulado float - 2 vidros",
         "system": "insulated",
+        "composition": "monolithic_monolithic",
         "monolithic_factor": "float",
         "panes": 2,
+        "minimum_pane_thickness": 3,
+    },
+    "insulado_float_laminado": {
+        "label": "Insulado float + laminado",
+        "system": "insulated",
+        "composition": "monolithic_laminated",
+        "monolithic_factor": "float",
+        "panes": 3,
         "minimum_pane_thickness": 3,
     },
 }
@@ -404,6 +413,54 @@ def next_nominal_glass_thickness(required_total, is_composed):
 
     return None
 
+def find_best_insulated_monolithic_composition(required_resistance_er, required_deflection_ef, epsilon1, e3):
+    candidates = []
+
+    for first in monolithic_nominal_thicknesses:
+        for second in monolithic_nominal_thicknesses:
+            total = first + second
+            equivalent_resistance = total / (0.9 * epsilon1 * e3)
+            equivalent_deflection = total / epsilon1
+
+            if equivalent_resistance >= required_resistance_er and equivalent_deflection >= required_deflection_ef:
+                candidates.append({
+                    "total": total,
+                    "panes": [first, second],
+                    "components": [
+                        f"Float {first} mm",
+                        "Câmara não incluída",
+                        f"Float {second} mm",
+                    ],
+                    "equivalent_resistance": equivalent_resistance,
+                    "equivalent_deflection": equivalent_deflection,
+                })
+
+    return min(candidates, key=lambda item: (item["total"], max(item["panes"]) - min(item["panes"]))) if candidates else None
+
+def find_best_insulated_mixed_composition(required_resistance_er, required_deflection_ef, epsilon1, epsilon2, e3):
+    candidates = []
+
+    for monolithic in monolithic_nominal_thicknesses:
+        for laminated_total in composed_nominal_thicknesses:
+            total = monolithic + laminated_total
+            equivalent_resistance = (monolithic + (laminated_total / (0.9 * epsilon2))) / (0.9 * epsilon1 * e3)
+            equivalent_deflection = (monolithic + (laminated_total / epsilon2)) / epsilon1
+
+            if equivalent_resistance >= required_resistance_er and equivalent_deflection >= required_deflection_ef:
+                candidates.append({
+                    "total": total,
+                    "panes": [monolithic, laminated_total / 2, laminated_total / 2],
+                    "components": [
+                        f"Float {monolithic} mm",
+                        "Câmara não incluída",
+                        f"Laminado {format(laminated_total / 2, 'g')} + {format(laminated_total / 2, 'g')} mm",
+                    ],
+                    "equivalent_resistance": equivalent_resistance,
+                    "equivalent_deflection": equivalent_deflection,
+                })
+
+    return min(candidates, key=lambda item: (item["total"], item["panes"][0])) if candidates else None
+
 def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key):
     glass_type = glass_types.get(glass_type_key, glass_types["monolitico_float"])
     base = calculate_glass_base_thickness(width_mm, height_mm, design_pressure)
@@ -437,17 +494,47 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
         equivalent_deflection = checked_total / epsilon2
     elif glass_type["system"] == "insulated":
         epsilon1 = glass_equivalence["insulated"]["two_glasses"]
-        required_sum_resistance = required_resistance_er * 0.9 * epsilon1 * e3
-        required_sum_deflection = deflection["required_ef"] * epsilon1
-        required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
-        nominal_total = next_nominal_glass_thickness(required_total, True)
+        epsilon2 = glass_equivalence["laminated"]["two_glasses"]
+
+        if glass_type.get("composition") == "monolithic_laminated":
+            required_total = max(
+                required_resistance_er * 0.9 * epsilon1 * e3,
+                deflection["required_ef"] * epsilon1,
+                minimum_pane * 3,
+            )
+            composition = find_best_insulated_mixed_composition(
+                required_resistance_er,
+                deflection["required_ef"],
+                epsilon1,
+                epsilon2,
+                e3,
+            )
+        else:
+            required_total = max(
+                required_resistance_er * 0.9 * epsilon1 * e3,
+                deflection["required_ef"] * epsilon1,
+                minimum_pane * 2,
+            )
+            composition = find_best_insulated_monolithic_composition(
+                required_resistance_er,
+                deflection["required_ef"],
+                epsilon1,
+                e3,
+            )
+
+        nominal_total = composition["total"] if composition else None
         checked_total = nominal_total or required_total
-        pane = checked_total / 2
-        panes = [pane, pane]
-        equivalent_resistance = checked_total / (0.9 * epsilon1 * e3)
-        equivalent_deflection = checked_total / epsilon1
+        panes = composition["panes"] if composition else []
+        components = composition["components"] if composition else ["Composição fora do catálogo atual"]
+        equivalent_resistance = composition["equivalent_resistance"] if composition else required_resistance_er
+        equivalent_deflection = composition["equivalent_deflection"] if composition else deflection["required_ef"]
     else:
         raise ValueError("Tipo de vidro não cadastrado")
+
+    if glass_type["system"] != "insulated":
+        components = [f"{glass_type['label']} {format(panes[0], 'g')} mm"] if len(panes) == 1 else [
+            f"Vidro {format(pane, 'g')} mm" for pane in panes
+        ]
 
     calculated_deflection = deflection["alpha"] * (float(design_pressure) / 1.5) * base["smaller_side_m"]**4 / equivalent_deflection**3
 
@@ -459,7 +546,12 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
         "espessura_nominal": nominal_total,
         "fora_catalogo": nominal_total is None,
         "catalogo": composed_nominal_thicknesses if glass_type["system"] != "monolithic" else monolithic_nominal_thicknesses,
+        "max_catalogo": max(monolithic_nominal_thicknesses) + max(composed_nominal_thicknesses)
+        if glass_type["system"] == "insulated"
+        else max(composed_nominal_thicknesses if glass_type["system"] != "monolithic" else monolithic_nominal_thicknesses),
         "vidros": panes,
+        "componentes": components,
+        "observacao_camera": "A espessura da câmara do vidro insulado não entra no cálculo." if glass_type["system"] == "insulated" else None,
         "largura_vidro": width_mm,
         "altura_vidro": height_mm,
         "pressao": float(design_pressure),

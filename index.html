@@ -164,10 +164,12 @@
                 </div>
 
                 <div class="factor-stack" aria-label="Fatores da NBR 6123">
+                  <p class="factor-instruction">Clique em cada fator para escolher a condição do projeto.</p>
                   <button class="factor-summary" type="button" data-dialog="s1Dialog">
                     <span>
                       <strong>S1</strong>
                       <small id="nbrS1Summary">Terreno plano ou fracamente acidentado</small>
+                      <em>Clique para escolher</em>
                     </span>
                     <b id="nbrS1Value">1,0</b>
                   </button>
@@ -175,6 +177,7 @@
                     <span>
                       <strong>S2</strong>
                       <small id="nbrS2Summary">Categoria a definir</small>
+                      <em>Clique para preencher</em>
                     </span>
                     <b id="nbrS2Value">1,0</b>
                   </button>
@@ -182,6 +185,7 @@
                     <span>
                       <strong>S3</strong>
                     <small id="nbrS3Summary">Grupo 3 - edificações usuais</small>
+                      <em>Clique para escolher</em>
                     </span>
                     <b id="nbrS3Value">1,0</b>
                   </button>
@@ -277,7 +281,7 @@
   </div>
 
   <footer id="bottom-bar">
-    <p>developed by <a href="https://github.com/gabrielvcc" target="_blank" rel="noopener">gabrielvc</a> | <a href="#" id="version-link">v2.0.1</a></p>
+    <p>developed by <a href="https://github.com/gabrielvcc" target="_blank" rel="noopener">gabrielvc</a> | <a href="#" id="version-link">v2.0.2</a></p>
   </footer>
 
   <dialog id="aboutDialog">
@@ -299,6 +303,20 @@
       </div>
 
       <div id="calculationDetailsContent" class="details-grid"></div>
+    </div>
+  </dialog>
+
+  <dialog class="factor-dialog" id="glassDetailsDialog">
+    <div class="dialog-content factor-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Memoria de calculo</p>
+          <h2>Vidro</h2>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
+      </div>
+
+      <div id="glassDetailsContent" class="details-grid"></div>
     </div>
   </dialog>
 
@@ -404,9 +422,15 @@
             </tr>
             <tr>
               <td><strong>Insulado float</strong></td>
-              <td>2 vidros monolíticos float</td>
+              <td>2 vidros monolíticos float + câmara</td>
               <td>ε1 = 1,60</td>
               <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="insulado_float_2" data-glass-name="Insulado float - 2 vidros">Selecionar</button></td>
+            </tr>
+            <tr>
+              <td><strong>Insulado float + laminado</strong></td>
+              <td>1 vidro float + câmara + laminado 2 vidros</td>
+              <td>ε1 = 1,60 / ε2 = 1,30</td>
+              <td><button class="secondary-btn alloy-option glass-option" type="button" data-glass-type="insulado_float_laminado" data-glass-name="Insulado float + laminado">Selecionar</button></td>
             </tr>
           </tbody>
         </table>

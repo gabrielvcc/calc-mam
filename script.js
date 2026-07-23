@@ -32,6 +32,7 @@ const maps = {
 
 const factorDialogState = {};
 let lastNbrCalculation = null;
+let lastGlassCalculation = null;
 let selectedAlloy = '6060-T5';
 let selectedGlassType = 'monolitico_float';
 let selectedGlassLabel = 'Monolítico float';
@@ -400,25 +401,65 @@ function displayResult(containerSelector, response) {
   const jx = response.jx;
   const vidro = response.vidro;
 
+  logGlassCalculation(response);
+  lastGlassCalculation = vidro || null;
+
   const pressaoFormatada = typeof pressao === 'number' ? Math.round(pressao).toLocaleString('pt-BR') : pressao;
   const wxFormatado = formatNumber(wx, (value) => Math.ceil(value).toLocaleString('pt-BR'));
   const jxFormatado = formatNumber(jx, (value) => Number.parseInt(value, 10).toLocaleString('pt-BR'));
   const vidroFormatado = vidro?.espessura_minima
     ? formatGlassResult(vidro)
     : 'N/A';
-  const vidroDescricao = vidro?.vidros?.length > 1
-    ? vidro.vidros.map((value) => formatGlassThickness(value)).join(' + ')
-    : vidro?.tipo || selectedGlassLabel;
+  const vidroDescricao = vidro ? getGlassCompositionLabel(vidro) : selectedGlassLabel;
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div class="result-highlight"><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
-      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd></div>
-      <div><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
-      <div><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
+      <div><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
+      <div class="${vidro ? 'result-with-action' : ''}">
+        <dt>Vidro mínimo</dt>
+        <dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd>
+        ${vidro ? '<button class="detail-btn" type="button" data-glass-details>Detalhes</button>' : ''}
+      </div>
+      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
+      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
     </dl>
   `;
+
+  resultsSection.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
+}
+
+function logGlassCalculation(response) {
+  if (!response?.vidro) {
+    return;
+  }
+
+  const glass = response.vidro;
+
+  console.groupCollapsed('Memória do cálculo do vidro');
+  console.table({
+    tipo: glass.tipo,
+    largura_vidro_mm: glass.largura_vidro,
+    altura_vidro_mm: glass.altura_vidro,
+    pressao_Pa: glass.pressao,
+    relacao_L_l: glass.relacao_L_l,
+    relacao_l_L: glass.relacao_l_L,
+    e1_mm: glass.e1,
+    c: glass.c,
+    e3: glass.e3,
+    alpha: glass.alpha,
+    eR_mm: glass.eR,
+    eF_mm: glass.eF,
+    flecha_mm: glass.flecha,
+    flecha_limite_mm: glass.flecha_limite,
+    espessura_calculada_mm: glass.espessura_calculada,
+    espessura_comercial_mm: glass.espessura_minima,
+    composicao_mm: glass.vidros?.join(' + '),
+    componentes: glass.componentes?.join(' | '),
+    observacao_camera: glass.observacao_camera,
+    fora_catalogo: glass.fora_catalogo,
+  });
+  console.groupEnd();
 }
 
 function formatGlassThickness(value) {
@@ -430,7 +471,7 @@ function formatGlassThickness(value) {
 
 function formatGlassResult(glass) {
   if (glass.fora_catalogo) {
-    return `> ${Math.max(...glass.catalogo).toLocaleString('pt-BR')} mm`;
+    return `> ${(glass.max_catalogo || Math.max(...glass.catalogo)).toLocaleString('pt-BR')} mm`;
   }
 
   return `${Number(glass.espessura_minima).toLocaleString('pt-BR')} mm`;
@@ -519,18 +560,24 @@ function renderNbrCalculatedResult(response) {
   const resultsSection = document.querySelector('#nbrResults');
   const pressureLabel = `${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
   lastNbrCalculation = response;
+  lastGlassCalculation = response.vidro || null;
+  logGlassCalculation(response);
   const frameHtml = response.wx && response.jx
     ? `
-      <div class="result-highlight"><dt>Vidro mínimo</dt><dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd></div>
-      <div><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
-      <div><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
+      <div class="result-with-action">
+        <dt>Vidro mínimo</dt>
+        <dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd>
+        <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
+      </div>
+      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
+      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
     `
     : '<div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>';
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div class="result-highlight result-with-action">
+      <div class="result-with-action">
         <dt>Pressao de ensaio</dt>
         <dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd>
         <button class="detail-btn" type="button" id="calculationDetailsBtn">Detalhes</button>
@@ -541,9 +588,15 @@ function renderNbrCalculatedResult(response) {
 
   document.querySelector('#nbrPressureFinalValue').textContent = pressureLabel;
   document.querySelector('#calculationDetailsBtn')?.addEventListener('click', openCalculationDetails);
+  resultsSection.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
 }
 
 function getGlassCompositionLabel(glass) {
+  if (glass?.componentes?.length) {
+    const composition = glass.componentes.join(' + ');
+    return glass.observacao_camera ? `${composition}. Câmara a definir.` : composition;
+  }
+
   if (!glass?.vidros?.length) {
     return selectedGlassLabel;
   }
@@ -647,9 +700,86 @@ function openCalculationDetails() {
           ${detailItem('eF', `${formatGlassThickness(glass.eF)} mm`)}
           ${detailItem('Flecha', `${formatGlassThickness(glass.flecha)} mm / limite ${formatGlassThickness(glass.flecha_limite)} mm`)}
           ${detailItem('Espessura comercial', formatGlassResult(glass))}
+          ${glass.observacao_camera ? detailItem('Câmara', 'Não incluída na espessura calculada do vidro') : ''}
         </dl>
       </section>
     ` : ''}
+  `;
+
+  dialog?.showModal();
+}
+
+function openGlassDetails() {
+  const glass = lastGlassCalculation;
+
+  if (!glass) {
+    return;
+  }
+
+  const dialog = document.querySelector('#glassDetailsDialog');
+  const content = document.querySelector('#glassDetailsContent');
+  const isLongGlass = glass.relacao_L_l > 2.5;
+  const baseFormula = isLongGlass
+    ? 'e1 = l x raiz(P) / 6,3'
+    : 'e1 = raiz((S x P) / 100)';
+  const baseValues = isLongGlass
+    ? `l = ${formatDetailNumber(Math.min(glass.largura_vidro, glass.altura_vidro) / 1000, 3)} m / P = ${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`
+    : `S = ${formatDetailNumber((glass.largura_vidro / 1000) * (glass.altura_vidro / 1000), 3)} m² / P = ${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`;
+
+  content.innerHTML = `
+    <section>
+      <h3>Entrada</h3>
+      <dl>
+        ${detailItem('Tipo escolhido', glass.tipo)}
+        ${detailItem('Composição', getGlassCompositionLabel(glass))}
+        ${detailItem('Dimensão do vidro', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
+        ${detailItem('Pressão usada', `${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`)}
+        ${detailItem('Apoio', '4 lados apoiados')}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Espessura e1</h3>
+      <dl>
+        ${detailItem('Critério', `L/l = ${formatDetailNumber(glass.relacao_L_l, 3)} ${isLongGlass ? '> 2,5' : '<= 2,5'}`)}
+        ${detailItem('Fórmula', baseFormula)}
+        ${detailItem('Valores', baseValues)}
+        ${detailItem('e1 calculado', `${formatGlassThickness(glass.e1)} mm`)}
+        ${detailItem('Fator c', formatDetailNumber(glass.c))}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Resistência</h3>
+      <dl>
+        ${detailItem('Verificação', 'eR >= e1 x c')}
+        ${detailItem('e1 x c', `${formatGlassThickness(glass.e1 * glass.c)} mm`)}
+        ${detailItem('eR da composição', `${formatGlassThickness(glass.eR)} mm`)}
+        ${detailItem('Fator ε3', formatDetailNumber(glass.e3))}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Flecha</h3>
+      <dl>
+        ${detailItem('Fórmula', 'f = α x (P / 1,5) x b⁴ / eF³')}
+        ${detailItem('l/L', formatDetailNumber(glass.relacao_l_L, 3))}
+        ${detailItem('α', formatDetailNumber(glass.alpha, 4))}
+        ${detailItem('eF da composição', `${formatGlassThickness(glass.eF)} mm`)}
+        ${detailItem('Flecha calculada', `${formatGlassThickness(glass.flecha)} mm`)}
+        ${detailItem('Flecha limite', `${formatGlassThickness(glass.flecha_limite)} mm`)}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Resultado</h3>
+      <dl>
+        ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
+        ${detailItem('Espessura comercial', formatGlassResult(glass))}
+        ${detailItem('Catálogo usado', glass.catalogo.map((value) => `${value} mm`).join(', '))}
+        ${glass.observacao_camera ? detailItem('Câmara', 'A câmara do insulado é definida à parte e não entra nessa espessura de vidro') : ''}
+      </dl>
+    </section>
   `;
 
   dialog?.showModal();
