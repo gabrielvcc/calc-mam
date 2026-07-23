@@ -571,41 +571,47 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
     }
 
 def add_frame_result(response, data, pressao_ensaio):
-    if not all(key in data and data[key] for key in ("larguratotal", "quantidadefol", "alturafol")):
-        return
+    if all(key in data and data[key] for key in ("larguratotal", "quantidadefol", "alturafol")):
+        larguratotal = float(data["larguratotal"])
+        quantidadefol = int(data["quantidadefol"])
+        alturafol = float(data["alturafol"])
 
-    larguratotal = float(data["larguratotal"])
-    quantidadefol = int(data["quantidadefol"])
-    alturafol = float(data["alturafol"])
+        if larguratotal <= 0 or quantidadefol <= 0 or alturafol <= 0:
+            raise ValueError("Dados da esquadria inválidos")
 
-    if larguratotal <= 0 or quantidadefol <= 0 or alturafol <= 0:
-        raise ValueError("Dados da esquadria inválidos")
+        alloy_name = data.get("liga", "6060-T5")
+        alloy = alloy_properties.get(alloy_name)
 
-    alloy_name = data.get("liga", "6060-T5")
-    alloy = alloy_properties.get(alloy_name)
+        if not alloy:
+            raise ValueError("Liga não cadastrada")
 
-    if not alloy:
-        raise ValueError("Liga não cadastrada")
+        lrt = alloy.get("lrt")
+        melast = alloy.get("melast")
 
-    lrt = alloy.get("lrt")
-    melast = alloy.get("melast")
+        if not lrt or not melast:
+            raise ValueError("Propriedades da liga não cadastradas")
 
-    if not lrt or not melast:
-        raise ValueError("Propriedades da liga não cadastradas")
+        largura_folha = largurafolha(larguratotal, quantidadefol)
+        response.update({
+            "wx": calcular_wx(pressao_ensaio, largura_folha, alturafol, lrt),
+            "jx": calcular_jx(pressao_ensaio, largura_folha, alturafol, melast),
+            "liga": {
+                "nome": alloy_name,
+                "lrt": lrt,
+                "melast": melast,
+                "densidade": alloy.get("densidade"),
+            },
+        })
 
-    largura_folha = largurafolha(larguratotal, quantidadefol)
-    glass_type = data.get("tipo_vidro", "monolitico_float")
-    response.update({
-        "wx": calcular_wx(pressao_ensaio, largura_folha, alturafol, lrt),
-        "jx": calcular_jx(pressao_ensaio, largura_folha, alturafol, melast),
-        "vidro": calculate_glass_result(largura_folha, alturafol, pressao_ensaio, glass_type),
-        "liga": {
-            "nome": alloy_name,
-            "lrt": lrt,
-            "melast": melast,
-            "densidade": alloy.get("densidade"),
-        },
-    })
+    if data.get("calcular_vidro"):
+        glass_width = float(data["largura_vidro"])
+        glass_height = float(data["altura_vidro"])
+
+        if glass_width <= 0 or glass_height <= 0:
+            raise ValueError("Dimensões do vidro inválidas")
+
+        glass_type = data.get("tipo_vidro", "monolitico_float")
+        response["vidro"] = calculate_glass_result(glass_width, glass_height, pressao_ensaio, glass_type)
 
 def encontrar_regiao(latitude, longitude):
     point = Point(longitude, latitude)
@@ -722,7 +728,7 @@ def get_wind_pressure():
         response["pressao_ensaio"] = pressao_ensaio
         
         # Calcula Wx e Jx se os dados da esquadria estiverem presentes
-        if 'larguratotal' in data and 'quantidadefol' in data and 'alturafol' in data:
+        if ('larguratotal' in data and 'quantidadefol' in data and 'alturafol' in data) or data.get("calcular_vidro"):
             try:
                 add_frame_result(response, data, pressao_ensaio)
             except (ValueError, TypeError):

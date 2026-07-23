@@ -350,8 +350,100 @@ function addFrameData(requestData, selectors) {
     requestData.quantidadefol = quantidadefol;
     requestData.alturafol = alturafol;
     requestData.liga = selectedAlloy;
-    requestData.tipo_vidro = selectedGlassType;
   }
+
+  const glassSection = selectors.glassSection ? document.querySelector(selectors.glassSection) : null;
+
+  if (!glassSection?.classList.contains('is-active')) {
+    return true;
+  }
+
+  const sameGlassDimensions = glassSection.querySelector('[data-glass-same]')?.checked;
+  let glassWidth = getValue(selectors.glassWidth);
+  let glassHeight = getValue(selectors.glassHeight);
+
+  if (sameGlassDimensions) {
+    const dimensions = getFrameGlassDimensions(selectors);
+
+    if (!dimensions) {
+      alert('Preencha largura, altura e folhas da esquadria para usar a mesma dimensão no vidro.');
+      return false;
+    }
+
+    glassWidth = dimensions.width;
+    glassHeight = dimensions.height;
+    syncGlassDimensionFields(glassSection, dimensions);
+  }
+
+  if (!glassWidth || !glassHeight) {
+    alert('Informe a largura e a altura do vidro, ou feche a opção de cálculo do vidro.');
+    return false;
+  }
+
+  requestData.calcular_vidro = true;
+  requestData.tipo_vidro = selectedGlassType;
+  requestData.largura_vidro = glassWidth;
+  requestData.altura_vidro = glassHeight;
+
+  return true;
+}
+
+function getFrameGlassDimensions(selectors) {
+  const totalWidth = Number(getValue(selectors.largura).replace(',', '.'));
+  const leaves = Number(getValue(selectors.folhas).replace(',', '.'));
+  const height = Number(getValue(selectors.altura).replace(',', '.'));
+
+  if (![totalWidth, leaves, height].every(Number.isFinite) || totalWidth <= 0 || leaves <= 0 || height <= 0) {
+    return null;
+  }
+
+  return {
+    width: String(totalWidth / leaves),
+    height: String(height),
+  };
+}
+
+function syncGlassDimensionFields(section, dimensions) {
+  const inputs = section.querySelectorAll('.optional-glass-body .input-grid input');
+
+  if (inputs[0]) {
+    inputs[0].value = formatInputNumber(dimensions.width);
+  }
+
+  if (inputs[1]) {
+    inputs[1].value = formatInputNumber(dimensions.height);
+  }
+}
+
+function updateSameGlassDimensions(checkbox, section, selectors) {
+  const inputs = section?.querySelectorAll('.optional-glass-body .input-grid input') || [];
+  const isChecked = checkbox.checked;
+
+  inputs.forEach((input) => {
+    input.readOnly = isChecked;
+  });
+
+  section?.classList.toggle('uses-frame-glass-size', isChecked);
+
+  if (!isChecked) {
+    return;
+  }
+
+  const dimensions = getFrameGlassDimensions(selectors);
+
+  if (dimensions) {
+    syncGlassDimensionFields(section, dimensions);
+  }
+}
+
+function formatInputNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return '';
+  }
+
+  return Number.isInteger(number) ? String(number) : number.toFixed(2);
 }
 
 function setSelectedAlloy(alloy) {
@@ -411,6 +503,15 @@ function displayResult(containerSelector, response) {
     ? formatGlassResult(vidro)
     : 'N/A';
   const vidroDescricao = vidro ? getGlassCompositionLabel(vidro) : selectedGlassLabel;
+  const vidroHtml = vidro
+    ? `
+      <div class="result-with-action">
+        <dt>Vidro mínimo</dt>
+        <dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd>
+        <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
+      </div>
+    `
+    : '';
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
@@ -418,11 +519,7 @@ function displayResult(containerSelector, response) {
       <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
       <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
       <div><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
-      <div class="${vidro ? 'result-with-action' : ''}">
-        <dt>Vidro mínimo</dt>
-        <dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd>
-        ${vidro ? '<button class="detail-btn" type="button" data-glass-details>Detalhes</button>' : ''}
-      </div>
+      ${vidroHtml}
     </dl>
   `;
 
@@ -499,11 +596,16 @@ async function calculateByLocation() {
     pavimentos,
   };
 
-  addFrameData(requestData, {
+  if (!addFrameData(requestData, {
     largura: '#larguraInput',
     altura: '#alturafolInput',
     folhas: '#quantidadefolInput',
-  });
+    glassSection: '#tabledGlassSection',
+    glassWidth: '#tabledGlassWidthInput',
+    glassHeight: '#tabledGlassHeightInput',
+  })) {
+    return;
+  }
 
   const response = await sendToServer(requestData);
 
@@ -537,11 +639,16 @@ function getNbrPayload() {
     payload.longitude = marker.getLatLng().lng;
   }
 
-  addFrameData(payload, {
+  if (!addFrameData(payload, {
     largura: '#nbrLarguraInput',
     altura: '#nbrAlturaInput',
     folhas: '#nbrFolhasInput',
-  });
+    glassSection: '#nbrGlassSection',
+    glassWidth: '#nbrGlassWidthInput',
+    glassHeight: '#nbrGlassHeightInput',
+  })) {
+    return null;
+  }
 
   return payload;
 }
@@ -563,17 +670,25 @@ function renderNbrCalculatedResult(response) {
   lastNbrCalculation = response;
   lastGlassCalculation = response.vidro || null;
   logGlassCalculation(response);
-  const frameHtml = response.wx && response.jx
+  const glassHtml = response.vidro
     ? `
-      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
-      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
       <div class="result-with-action">
         <dt>Vidro mínimo</dt>
         <dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd>
         <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
       </div>
     `
-    : '<div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>';
+    : '';
+  const frameHtml = response.wx && response.jx
+    ? `
+      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
+      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
+      ${glassHtml}
+    `
+    : `
+      <div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>
+      ${glassHtml}
+    `;
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
@@ -896,6 +1011,10 @@ async function prepareNbrCalculation() {
 
   const payload = getNbrPayload();
 
+  if (!payload) {
+    return;
+  }
+
   try {
     const response = await fetch(nbrCalcUrl, {
       method: 'POST',
@@ -930,11 +1049,16 @@ async function calculateManualPressure() {
     pressao_personalizada: pressaoPersonalizada,
   };
 
-  addFrameData(requestData, {
+  if (!addFrameData(requestData, {
     largura: '#manualLarguraInput',
     altura: '#manualAlturaInput',
     folhas: '#manualFolhasInput',
-  });
+    glassSection: '#manualGlassSection',
+    glassWidth: '#manualGlassWidthInput',
+    glassHeight: '#manualGlassHeightInput',
+  })) {
+    return;
+  }
 
   const response = await sendToServer(requestData);
 
@@ -1004,6 +1128,34 @@ document.querySelectorAll('.glass-option').forEach((button) => {
   button.addEventListener('click', () => {
     setSelectedGlass(button);
     button.closest('dialog')?.close('apply');
+  });
+});
+document.querySelectorAll('[data-glass-toggle]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const section = document.querySelector(`#${button.dataset.glassToggle}`);
+    const isActive = section?.classList.toggle('is-active');
+
+    button.textContent = isActive ? 'Remover' : 'Calcular vidro';
+  });
+});
+document.querySelectorAll('[data-glass-same]').forEach((checkbox) => {
+  const sourceSelectors = {
+    largura: checkbox.dataset.sourceWidth,
+    altura: checkbox.dataset.sourceHeight,
+    folhas: checkbox.dataset.sourceLeaves,
+  };
+  const section = document.querySelector(`#${checkbox.dataset.glassSame}`);
+
+  checkbox.addEventListener('change', () => {
+    updateSameGlassDimensions(checkbox, section, sourceSelectors);
+  });
+
+  [sourceSelectors.largura, sourceSelectors.altura, sourceSelectors.folhas].forEach((selector) => {
+    document.querySelector(selector)?.addEventListener('input', () => {
+      if (checkbox.checked) {
+        updateSameGlassDimensions(checkbox, section, sourceSelectors);
+      }
+    });
   });
 });
 document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {

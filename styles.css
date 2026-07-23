@@ -685,6 +685,106 @@ select:focus {
   color: var(--white);
 }
 
+.optional-glass-card {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(0, 156, 218, 0.35);
+  border-radius: 8px;
+  background: #f7fbfd;
+}
+
+.optional-glass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.optional-glass-header div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.optional-glass-header strong {
+  color: var(--blue-dark);
+  font-size: 13px;
+}
+
+.optional-glass-note {
+  margin: 0;
+  color: var(--medium-gray);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.glass-toggle {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 6px 9px;
+  border-color: rgba(0, 156, 218, 0.24);
+  background: var(--white);
+  color: var(--blue-dark);
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.optional-glass-body {
+  display: none;
+  margin-top: 12px;
+}
+
+.optional-glass-card.is-active .optional-glass-body {
+  display: grid;
+  gap: 12px;
+}
+
+.optional-glass-card.is-active .glass-toggle {
+  background: var(--white);
+  color: var(--medium-gray);
+  border-color: rgba(52, 58, 64, 0.18);
+}
+
+.same-glass-toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(0, 156, 218, 0.22);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--dark-gray);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.same-glass-toggle input {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 0;
+  padding: 0;
+  border-radius: 3px;
+  box-shadow: none;
+  accent-color: var(--blue);
+}
+
+.same-glass-toggle span {
+  line-height: 1;
+}
+
+.optional-glass-card.uses-frame-glass-size input[readonly] {
+  background: #eef9fd;
+  color: var(--blue-dark);
+}
+
 .calc-btn {
   margin-top: 16px;
 }

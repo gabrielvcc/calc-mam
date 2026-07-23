@@ -109,11 +109,30 @@
                   <strong data-alloy-label>6060-T5</strong>
                 </button>
               </label>
-              <label class="alloy-field">Tipo de vidro
-                <button class="alloy-select" type="button" data-dialog="glassDialog">
-                  <strong data-glass-label>Monolítico float</strong>
-                </button>
-              </label>
+              <div class="optional-glass-card" id="tabledGlassSection">
+                <div class="optional-glass-header">
+                  <div>
+                    <strong>Espessura de vidro mínima</strong>
+                  </div>
+                  <button class="secondary-btn glass-toggle" type="button" data-glass-toggle="tabledGlassSection">Calcular vidro</button>
+                </div>
+                <div class="optional-glass-body">
+                  <p class="optional-glass-note">Informe a medida real do pano de vidro. Para esquadrias simples, use a mesma dimensão da esquadria.</p>
+                  <label class="alloy-field">Tipo de vidro
+                    <button class="alloy-select" type="button" data-dialog="glassDialog">
+                      <strong data-glass-label>Monolítico float</strong>
+                    </button>
+                  </label>
+                  <label class="same-glass-toggle">
+                    <input type="checkbox" data-glass-same="tabledGlassSection" data-source-width="#larguraInput" data-source-height="#alturafolInput" data-source-leaves="#quantidadefolInput">
+                    <span>Mesma dimensão da esquadria</span>
+                  </label>
+                  <div class="input-grid">
+                    <label for="tabledGlassWidthInput">Largura do vidro (mm)<input id="tabledGlassWidthInput" type="number" step="1" placeholder="Largura do pano"></label>
+                    <label for="tabledGlassHeightInput">Altura do vidro (mm)<input id="tabledGlassHeightInput" type="number" step="1" placeholder="Altura do pano"></label>
+                  </div>
+                </div>
+              </div>
               <button class="primary-btn wide calc-btn" id="generateJsonBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -205,11 +224,30 @@
                   <strong data-alloy-label>6060-T5</strong>
                 </button>
               </label>
-              <label class="alloy-field">Tipo de vidro
-                <button class="alloy-select" type="button" data-dialog="glassDialog">
-                  <strong data-glass-label>Monolítico float</strong>
-                </button>
-              </label>
+              <div class="optional-glass-card" id="nbrGlassSection">
+                <div class="optional-glass-header">
+                  <div>
+                    <strong>Espessura de vidro mínima</strong>
+                  </div>
+                  <button class="secondary-btn glass-toggle" type="button" data-glass-toggle="nbrGlassSection">Calcular vidro</button>
+                </div>
+                <div class="optional-glass-body">
+                  <p class="optional-glass-note">Informe a medida real do pano de vidro. Em fachadas, use o maior vidro do módulo.</p>
+                  <label class="alloy-field">Tipo de vidro
+                    <button class="alloy-select" type="button" data-dialog="glassDialog">
+                      <strong data-glass-label>Monolítico float</strong>
+                    </button>
+                  </label>
+                  <label class="same-glass-toggle">
+                    <input type="checkbox" data-glass-same="nbrGlassSection" data-source-width="#nbrLarguraInput" data-source-height="#nbrAlturaInput" data-source-leaves="#nbrFolhasInput">
+                    <span>Mesma dimensão da esquadria</span>
+                  </label>
+                  <div class="input-grid">
+                    <label for="nbrGlassWidthInput">Largura do vidro (mm)<input id="nbrGlassWidthInput" type="number" step="1" placeholder="Largura do pano"></label>
+                    <label for="nbrGlassHeightInput">Altura do vidro (mm)<input id="nbrGlassHeightInput" type="number" step="1" placeholder="Altura do pano"></label>
+                  </div>
+                </div>
+              </div>
               <button class="primary-btn wide calc-btn" id="nbrCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
@@ -263,11 +301,30 @@
                   <strong data-alloy-label>6060-T5</strong>
                 </button>
               </label>
-              <label class="alloy-field">Tipo de vidro
-                <button class="alloy-select" type="button" data-dialog="glassDialog">
-                  <strong data-glass-label>Monolítico float</strong>
-                </button>
-              </label>
+              <div class="optional-glass-card" id="manualGlassSection">
+                <div class="optional-glass-header">
+                  <div>
+                    <strong>Espessura de vidro mínima</strong>
+                  </div>
+                  <button class="secondary-btn glass-toggle" type="button" data-glass-toggle="manualGlassSection">Calcular vidro</button>
+                </div>
+                <div class="optional-glass-body">
+                  <p class="optional-glass-note">Informe a medida real do pano de vidro ou reutilize a dimensão da esquadria.</p>
+                  <label class="alloy-field">Tipo de vidro
+                    <button class="alloy-select" type="button" data-dialog="glassDialog">
+                      <strong data-glass-label>Monolítico float</strong>
+                    </button>
+                  </label>
+                  <label class="same-glass-toggle">
+                    <input type="checkbox" data-glass-same="manualGlassSection" data-source-width="#manualLarguraInput" data-source-height="#manualAlturaInput" data-source-leaves="#manualFolhasInput">
+                    <span>Mesma dimensão da esquadria</span>
+                  </label>
+                  <div class="input-grid">
+                    <label for="manualGlassWidthInput">Largura do vidro (mm)<input id="manualGlassWidthInput" type="number" step="1" placeholder="Largura do pano"></label>
+                    <label for="manualGlassHeightInput">Altura do vidro (mm)<input id="manualGlassHeightInput" type="number" step="1" placeholder="Altura do pano"></label>
+                  </div>
+                </div>
+              </div>
               <button class="primary-btn wide calc-btn" id="manualCalculateBtn" type="button">Calcular</button>
             </section>
           </form>
