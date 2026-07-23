@@ -461,13 +461,14 @@ def find_best_insulated_mixed_composition(required_resistance_er, required_defle
 
     return min(candidates, key=lambda item: (item["total"], item["panes"][0])) if candidates else None
 
-def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key):
+def calculate_glass_result(width_mm, height_mm, wind_pressure, glass_type_key):
     glass_type = glass_types.get(glass_type_key, glass_types["monolitico_float"])
-    base = calculate_glass_base_thickness(width_mm, height_mm, design_pressure)
+    calculation_pressure = float(wind_pressure) * 1.5
+    base = calculate_glass_base_thickness(width_mm, height_mm, calculation_pressure)
     deflection = calculate_glass_deflection_requirement(
         base["smaller_side_m"],
         base["larger_side_m"],
-        design_pressure,
+        calculation_pressure,
     )
     reduction_factor = 1.0
     required_resistance_er = base["e1"] * reduction_factor
@@ -538,7 +539,7 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
             f"Vidro {format(pane, 'g')} mm" for pane in panes
         ]
 
-    calculated_deflection = deflection["alpha"] * (float(design_pressure) / 1.5) * base["smaller_side_m"]**4 / equivalent_deflection**3
+    calculated_deflection = deflection["alpha"] * (calculation_pressure / 1.5) * base["smaller_side_m"]**4 / equivalent_deflection**3
 
     return {
         "tipo": glass_type["label"],
@@ -557,7 +558,9 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
         "observacao_camera": "A espessura da câmara do vidro insulado não entra no cálculo." if glass_type["system"] == "insulated" else None,
         "largura_vidro": width_mm,
         "altura_vidro": height_mm,
-        "pressao": float(design_pressure),
+        "pressao_vento": float(wind_pressure),
+        "pressao": calculation_pressure,
+        "fator_pressao_calculo": 1.5,
         "e1": base["e1"],
         "c": reduction_factor,
         "e3": e3,

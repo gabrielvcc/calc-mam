@@ -538,7 +538,9 @@ function logGlassCalculation(response) {
     tipo: glass.tipo,
     largura_vidro_mm: glass.largura_vidro,
     altura_vidro_mm: glass.altura_vidro,
-    pressao_Pa: glass.pressao,
+    pressao_vento_Pv_Pa: glass.pressao_vento,
+    fator_pressao_calculo: glass.fator_pressao_calculo,
+    pressao_calculo_P_Pa: glass.pressao,
     relacao_L_l: glass.relacao_L_l,
     relacao_l_L: glass.relacao_l_L,
     e1_mm: glass.e1,
@@ -849,7 +851,8 @@ function openGlassDetails() {
         ${detailItem('Tipo escolhido', glass.tipo)}
         ${detailItem('Composição', getGlassCompositionLabel(glass))}
         ${detailItem('Dimensão do vidro', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
-        ${detailItem('Pressão usada', `${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`)}
+        ${detailItem('Pressão de vento Pv', `${Math.round(glass.pressao_vento).toLocaleString('pt-BR')} Pa`)}
+        ${detailItem('Pressão de cálculo P', `${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`)}
         ${detailItem('Apoio', '4 lados apoiados')}
       </dl>
     </section>
@@ -858,6 +861,7 @@ function openGlassDetails() {
       <h3>Espessura e1</h3>
       <dl>
         ${detailItem('Critério', `L/l = ${formatDetailNumber(glass.relacao_L_l, 3)} ${isLongGlass ? '> 2,5' : '<= 2,5'}`)}
+        ${detailItem('Pressão', `P = Pv x ${formatDetailNumber(glass.fator_pressao_calculo)} = ${Math.round(glass.pressao).toLocaleString('pt-BR')} Pa`)}
         ${detailItem('Fórmula', baseFormula)}
         ${detailItem('Valores', baseValues)}
         ${detailItem('e1 calculado', `${formatGlassThickness(glass.e1)} mm`)}
