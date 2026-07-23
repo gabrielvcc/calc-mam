@@ -427,9 +427,9 @@ def find_best_insulated_monolithic_composition(required_resistance_er, required_
                     "total": total,
                     "panes": [first, second],
                     "components": [
-                        f"Float {first} mm",
-                        "Câmara não incluída",
-                        f"Float {second} mm",
+                        f"1 vidro float {first} mm",
+                        "câmara a definir",
+                        f"1 vidro float {second} mm",
                     ],
                     "equivalent_resistance": equivalent_resistance,
                     "equivalent_deflection": equivalent_deflection,
@@ -451,9 +451,9 @@ def find_best_insulated_mixed_composition(required_resistance_er, required_defle
                     "total": total,
                     "panes": [monolithic, laminated_total / 2, laminated_total / 2],
                     "components": [
-                        f"Float {monolithic} mm",
-                        "Câmara não incluída",
-                        f"Laminado {format(laminated_total / 2, 'g')} + {format(laminated_total / 2, 'g')} mm",
+                        f"1 vidro float {monolithic} mm",
+                        "câmara a definir",
+                        f"laminado {format(laminated_total / 2, 'g')} + {format(laminated_total / 2, 'g')} mm",
                     ],
                     "equivalent_resistance": equivalent_resistance,
                     "equivalent_deflection": equivalent_deflection,
@@ -475,7 +475,8 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
     minimum_pane = glass_type.get("minimum_pane_thickness", 0)
 
     if glass_type["system"] == "monolithic":
-        required_total = max(required_resistance_er * e3, deflection["required_ef"], minimum_pane)
+        calculated_total = max(required_resistance_er * e3, deflection["required_ef"])
+        required_total = max(calculated_total, minimum_pane)
         nominal_total = next_nominal_glass_thickness(required_total, False)
         checked_total = nominal_total or required_total
         panes = [checked_total]
@@ -485,7 +486,8 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
         epsilon2 = glass_equivalence["laminated"]["two_glasses"]
         required_sum_resistance = required_resistance_er * 0.9 * epsilon2 * e3
         required_sum_deflection = deflection["required_ef"] * epsilon2
-        required_total = max(required_sum_resistance, required_sum_deflection, minimum_pane * 2)
+        calculated_total = max(required_sum_resistance, required_sum_deflection)
+        required_total = max(calculated_total, minimum_pane * 2)
         nominal_total = next_nominal_glass_thickness(required_total, True)
         checked_total = nominal_total or required_total
         pane = checked_total / 2
@@ -497,11 +499,11 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
         epsilon2 = glass_equivalence["laminated"]["two_glasses"]
 
         if glass_type.get("composition") == "monolithic_laminated":
-            required_total = max(
+            calculated_total = max(
                 required_resistance_er * 0.9 * epsilon1 * e3,
                 deflection["required_ef"] * epsilon1,
-                minimum_pane * 3,
             )
+            required_total = max(calculated_total, minimum_pane * 3)
             composition = find_best_insulated_mixed_composition(
                 required_resistance_er,
                 deflection["required_ef"],
@@ -510,11 +512,11 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
                 e3,
             )
         else:
-            required_total = max(
+            calculated_total = max(
                 required_resistance_er * 0.9 * epsilon1 * e3,
                 deflection["required_ef"] * epsilon1,
-                minimum_pane * 2,
             )
+            required_total = max(calculated_total, minimum_pane * 2)
             composition = find_best_insulated_monolithic_composition(
                 required_resistance_er,
                 deflection["required_ef"],
@@ -541,7 +543,8 @@ def calculate_glass_result(width_mm, height_mm, design_pressure, glass_type_key)
     return {
         "tipo": glass_type["label"],
         "sistema": glass_type["system"],
-        "espessura_calculada": required_total,
+        "espessura_calculada": calculated_total,
+        "espessura_requerida": required_total,
         "espessura_minima": checked_total,
         "espessura_nominal": nominal_total,
         "fora_catalogo": nominal_total is None,

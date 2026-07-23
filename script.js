@@ -415,14 +415,14 @@ function displayResult(containerSelector, response) {
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
+      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
+      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
       <div><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
       <div class="${vidro ? 'result-with-action' : ''}">
         <dt>Vidro mínimo</dt>
         <dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd>
         ${vidro ? '<button class="detail-btn" type="button" data-glass-details>Detalhes</button>' : ''}
       </div>
-      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
-      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
     </dl>
   `;
 
@@ -453,6 +453,7 @@ function logGlassCalculation(response) {
     flecha_mm: glass.flecha,
     flecha_limite_mm: glass.flecha_limite,
     espessura_calculada_mm: glass.espessura_calculada,
+    espessura_requerida_mm: glass.espessura_requerida,
     espessura_comercial_mm: glass.espessura_minima,
     composicao_mm: glass.vidros?.join(' + '),
     componentes: glass.componentes?.join(' | '),
@@ -564,25 +565,25 @@ function renderNbrCalculatedResult(response) {
   logGlassCalculation(response);
   const frameHtml = response.wx && response.jx
     ? `
+      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
+      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
       <div class="result-with-action">
         <dt>Vidro mínimo</dt>
         <dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd>
         <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
       </div>
-      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
-      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
     `
     : '<div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>';
 
   resultsSection.innerHTML = `
     <h2>Resultados</h2>
     <dl>
+      ${frameHtml}
       <div class="result-with-action">
         <dt>Pressao de ensaio</dt>
         <dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd>
         <button class="detail-btn" type="button" id="calculationDetailsBtn">Detalhes</button>
       </div>
-      ${frameHtml}
     </dl>
   `;
 
@@ -593,8 +594,7 @@ function renderNbrCalculatedResult(response) {
 
 function getGlassCompositionLabel(glass) {
   if (glass?.componentes?.length) {
-    const composition = glass.componentes.join(' + ');
-    return glass.observacao_camera ? `${composition}. Câmara a definir.` : composition;
+    return glass.componentes.join(' + ');
   }
 
   if (!glass?.vidros?.length) {
@@ -696,6 +696,7 @@ function openCalculationDetails() {
           ${detailItem('Dimensao do modulo', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
           ${detailItem('e1', `${formatGlassThickness(glass.e1)} mm`)}
           ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
+          ${detailItem('Espessura requerida', `${formatGlassThickness(glass.espessura_requerida)} mm`)}
           ${detailItem('eR', `${formatGlassThickness(glass.eR)} mm`)}
           ${detailItem('eF', `${formatGlassThickness(glass.eF)} mm`)}
           ${detailItem('Flecha', `${formatGlassThickness(glass.flecha)} mm / limite ${formatGlassThickness(glass.flecha_limite)} mm`)}
@@ -775,6 +776,7 @@ function openGlassDetails() {
       <h3>Resultado</h3>
       <dl>
         ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
+        ${detailItem('Após mínimo normativo', `${formatGlassThickness(glass.espessura_requerida)} mm`)}
         ${detailItem('Espessura comercial', formatGlassResult(glass))}
         ${detailItem('Catálogo usado', glass.catalogo.map((value) => `${value} mm`).join(', '))}
         ${glass.observacao_camera ? detailItem('Câmara', 'A câmara do insulado é definida à parte e não entra nessa espessura de vidro') : ''}
