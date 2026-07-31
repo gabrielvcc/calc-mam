@@ -183,30 +183,29 @@
                 </div>
 
                 <div class="factor-stack" aria-label="Fatores da NBR 6123">
-                  <p class="factor-instruction">Clique em cada fator para escolher a condição do projeto.</p>
                   <button class="factor-summary" type="button" data-dialog="s1Dialog">
                     <span>
                       <strong>S1</strong>
-                      <small id="nbrS1Summary">Terreno plano ou fracamente acidentado</small>
+                      <small id="nbrS1Summary"></small>
                       <em>Clique para escolher</em>
                     </span>
-                    <b id="nbrS1Value">1,0</b>
+                    <b id="nbrS1Value">--</b>
                   </button>
                   <button class="factor-summary" type="button" data-dialog="s2Dialog">
                     <span>
                       <strong>S2</strong>
-                      <small id="nbrS2Summary">Categoria a definir</small>
-                      <em>Clique para preencher</em>
+                      <small id="nbrS2Summary"></small>
+                      <em>Clique para escolher</em>
                     </span>
-                    <b id="nbrS2Value">1,0</b>
+                    <b id="nbrS2Value">--</b>
                   </button>
                   <button class="factor-summary" type="button" data-dialog="s3Dialog">
                     <span>
                       <strong>S3</strong>
-                    <small id="nbrS3Summary">Grupo 3 - edificações usuais</small>
+                    <small id="nbrS3Summary"></small>
                       <em>Clique para escolher</em>
                     </span>
-                    <b id="nbrS3Value">1,0</b>
+                    <b id="nbrS3Value">--</b>
                   </button>
                 </div>
               </div>
@@ -507,17 +506,16 @@
 
       <div class="option-grid">
         <label class="option-card">
-          <input type="radio" name="nbrS1" value="1.0" data-title="Terreno plano ou fracamente acidentado" checked>
+          <input type="radio" name="nbrS1" value="1.0" data-title="Terreno plano ou fracamente acidentado">
           <span>
-            <strong>Terreno plano ou fracamente acidentado</strong>
-            <small>Referencia usual para terrenos sem aceleracao topografica relevante.</small>
+            <strong>a) Terreno plano ou fracamente acidentado</strong>
           </span>
           <b>1,0</b>
         </label>
         <label class="option-card">
           <input type="radio" name="nbrS1" value="slope" data-title="Taludes ou morros">
           <span>
-            <strong>Taludes ou morros</strong>
+            <strong>b) Taludes ou morros</strong>
             <small>Use um valor calculado pela NBR 6123 ou uma das referencias simplificadas abaixo.</small>
           </span>
           <b>Config.</b>
@@ -553,8 +551,7 @@
         <label class="option-card">
           <input type="radio" name="nbrS1" value="0.9" data-title="Vales profundos protegidos">
           <span>
-            <strong>Vales profundos protegidos</strong>
-            <small>Para locais protegidos de ventos de qualquer direcao.</small>
+            <strong>c) Vales profundos, protegidos de ventos de qualquer direção</strong>
           </span>
           <b>0,9</b>
         </label>
@@ -564,11 +561,11 @@
     </div>
   </dialog>
 
-  <dialog class="factor-dialog" id="s2Dialog">
+  <dialog class="factor-dialog factor-dialog--wide" id="s2Dialog">
     <div class="dialog-content factor-dialog-content">
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">Rugosidade, dimensoes e altura</p>
+          <p class="eyebrow">Rugosidade e dimensoes</p>
           <h2>S2</h2>
         </div>
         <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
@@ -577,11 +574,11 @@
       <div class="factor-layout s2-layout">
         <div class="s2-categories">
           <div class="option-grid compact-options">
-            <label class="option-card"><input type="radio" name="nbrS2" value="categoria1" data-title="Categoria I" checked><span><strong>Categoria I</strong><small>Superficies lisas de grandes dimensoes.</small></span><b>Tabela</b></label>
-            <label class="option-card"><input type="radio" name="nbrS2" value="categoria2" data-title="Categoria II"><span><strong>Categoria II</strong><small>Terrenos abertos com poucos obstaculos.</small></span><b>Tabela</b></label>
-            <label class="option-card"><input type="radio" name="nbrS2" value="categoria3" data-title="Categoria III"><span><strong>Categoria III</strong><small>Terrenos com obstaculos baixos e esparsos.</small></span><b>Tabela</b></label>
-            <label class="option-card"><input type="radio" name="nbrS2" value="categoria4" data-title="Categoria IV"><span><strong>Categoria IV</strong><small>Terrenos cobertos por obstaculos numerosos.</small></span><b>Tabela</b></label>
-            <label class="option-card"><input type="radio" name="nbrS2" value="categoria5" data-title="Categoria V"><span><strong>Categoria V</strong><small>Centro de grandes cidades ou zonas densas.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria1" data-title="Categoria I"><span><strong>a) Categoria I</strong><small>Superfícies lisas de grandes dimensões, com mais de 5 km de extensão, medida na direção e sentido do vento incidente;</small><small class="norm-example"><strong>EXEMPLOS</strong> mar calmo, lagos, rios e pântanos sem vegetação.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria2" data-title="Categoria II"><span><strong>b) Categoria II</strong><small>Terrenos abertos, em nível ou aproximadamente em nível, com poucos obstáculos isolados, tais como árvores e edificações baixas;</small><small class="norm-example"><strong>EXEMPLOS</strong> zonas costeiras planas, pântanos com vegetação rala, campos de aviação, pradarias, charnecas e fazendas sem sebes ou muros.</small><small class="norm-note">A cota média do topo dos obstáculos é considerada inferior ou igual a 1,0 m.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria3" data-title="Categoria III"><span><strong>c) Categoria III</strong><small>Terrenos planos ou ondulados com obstáculos, como sebes e muros, poucos quebra-ventos de árvores, edificações baixas e esparsas;</small><small class="norm-example"><strong>EXEMPLOS</strong> granjas e casas de campo, com exceção das partes com matos, fazendas com sebes e/ou muros, subúrbios a considerável distância do centro, com casas baixas e esparsas.</small><small class="norm-note">A cota média do topo dos obstáculos é considerada 3,0 m.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria4" data-title="Categoria IV"><span><strong>d) Categoria IV</strong><small>Terrenos cobertos por obstáculos numerosos e pouco espaçados, em zona florestal, industrial ou urbanizada;</small><small class="norm-example"><strong>EXEMPLOS</strong> zonas de parques e bosques com muitas árvores, cidades pequenas e seus arredores, subúrbios densamente construídos de grandes cidades, áreas industriais plena ou parcialmente desenvolvidas.</small><small class="norm-note">A cota média do topo dos obstáculos é considerada igual a 10 m.</small><small>Esta Categoria também inclui zonas com obstáculos maiores e que ainda não podem ser considerados na Categoria V.</small></span><b>Tabela</b></label>
+            <label class="option-card"><input type="radio" name="nbrS2" value="categoria5" data-title="Categoria V"><span><strong>e) Categoria V</strong><small>Terrenos cobertos por obstáculos numerosos, grandes, altos e poucos espaçados.</small><small class="norm-example"><strong>EXEMPLOS</strong> florestas com árvores altas de copas isoladas, centros de grandes cidades, complexos industriais bem desenvolvidos.</small><small class="norm-note">A cota média do topo dos obstáculos é considerada igual ou superior a 25 m.</small></span><b>Tabela</b></label>
           </div>
         </div>
 
@@ -620,18 +617,18 @@
     <div class="dialog-content factor-dialog-content">
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">Fator estatistico</p>
+          <p class="eyebrow">Fator estatístico</p>
           <h2>S3</h2>
         </div>
         <button class="icon-btn" type="button" aria-label="Fechar" data-close-dialog>&times;</button>
       </div>
 
       <div class="option-grid s3-option-grid">
-        <label class="option-card"><input type="radio" name="nbrS3" value="1.11" data-title="Grupo 1"><span><strong>Grupo 1</strong><small>Estruturas cuja ruina total ou parcial pode afetar a seguranca ou possibilidade de socorro a pessoas apos uma tempestade destrutiva, como hospitais, quarteis de bombeiros e de forcas de seguranca, edificios de centrais de controle etc. Pontes rodoviarias e ferroviarias. Estruturas que abriguem substancias inflamaveis, toxicas e/ou explosivas. Vedacoes das edificacoes do grupo 1.</small></span><b>1,11</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="1.06" data-title="Grupo 2"><span><strong>Grupo 2</strong><small>Estruturas cuja ruina represente substancial risco a vida humana, particularmente a pessoas em aglomeracoes, criancas e jovens, incluindo edificacoes com capacidade de aglomeracao de mais de 300 pessoas em um mesmo ambiente, creches com capacidade maior que 150 pessoas, escolas com capacidade maior que 250 pessoas. Vedacoes das edificacoes do grupo 2.</small></span><b>1,06</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="1.00" data-title="Grupo 3" checked><span><strong>Grupo 3</strong><small>Edificacoes para residencias, hoteis, comercio e industrias. Estruturas ou elementos estruturais desmontaveis com vistas a reutilizacao. Vedacoes das edificacoes do grupo 3.</small></span><b>1,00</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="0.95" data-title="Grupo 4"><span><strong>Grupo 4</strong><small>Edificacoes nao destinadas a ocupacao humana, como depositos e silos, e sem circulacao de pessoas no entorno. Vedacoes das edificacoes do grupo 4.</small></span><b>0,95</b></label>
-        <label class="option-card"><input type="radio" name="nbrS3" value="0.83" data-title="Grupo 5"><span><strong>Grupo 5</strong><small>Edificacoes temporarias nao reutilizaveis. Estruturas dos grupos 1 a 4 durante a construcao, fator aplicavel em prazo maximo de 2 anos. Vedacoes das edificacoes do grupo 5.</small></span><b>0,83</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.11" data-title="Grupo 1"><span><strong>Grupo 1</strong><small>Estruturas cuja ruína total ou parcial pode afetar a segurança ou possibilidade de socorro a pessoas após uma tempestade destrutiva (hospitais, quartéis de bombeiros e de forças de segurança, edifícios de centrais de controle, etc.).</small><small>Pontes rodoviárias e ferroviárias.</small><small>Estruturas que abrigam substâncias inflamáveis, tóxicas e/ou explosivas.</small><small>Vedações das edificações do grupo 1 (telhas, vidros, painéis de vedação).</small></span><b>1,11</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.06" data-title="Grupo 2"><span><strong>Grupo 2</strong><small>Estruturas cuja ruína represente substancial risco à vida humana, particularmente a pessoas em aglomerações, crianças e jovens, incluindo, mas não limitado a:</small><ul class="norm-list"><li>edificações com capacidade de aglomeração de mais de 300 pessoas em um mesmo ambiente, como centros de convenções, ginásios, estádios etc.</li><li>creches com capacidade maior do que 150 pessoas;</li><li>escolas com capacidade maior do que 250 pessoas;</li></ul><small>Vedações das edificações do grupo 2 (telhas, vidros, painéis de vedação).</small></span><b>1,06</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="1.00" data-title="Grupo 3"><span><strong>Grupo 3</strong><small>Edificações para residências, hotéis, comércio, indústrias.</small><small>Estruturas ou elementos estruturais desmontáveis com vistas a reutilização.</small><small>Vedações das edificações do grupo 3 (telhas, vidros, painéis de vedação).</small></span><b>1,00</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.95" data-title="Grupo 4"><span><strong>Grupo 4</strong><small>Edificações não destinadas à ocupação humana (depósitos, silos) e sem circulação de pessoas no entorno.</small><small>Vedações das edificações do grupo 4 (telhas, vidros, painéis de vedação).</small></span><b>0,95</b></label>
+        <label class="option-card"><input type="radio" name="nbrS3" value="0.83" data-title="Grupo 5"><span><strong>Grupo 5</strong><small>Edificações temporárias não reutilizáveis.</small><small>Estruturas dos Grupos 1 a 4 durante a construção (fator aplicável em um prazo máximo de 2 anos).</small><small>Vedações das edificações do grupo 5 (telhas, vidros, painéis de vedação).</small></span><b>0,83</b></label>
       </div>
 
       <label class="note-toggle">

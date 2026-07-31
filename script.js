@@ -283,6 +283,34 @@ function getS1Config() {
   };
 }
 
+function getNbrFactorState() {
+  const s1 = getS1Config();
+  const s2 = getCheckedFactor('nbrS2');
+  const s3 = getCheckedFactor('nbrS3');
+  const s2Dimensions = [
+    getValue('#nbrBuildingWidthInput'),
+    getValue('#nbrBuildingLengthInput'),
+    getValue('#nbrBuildingHeightInput'),
+  ];
+
+  return {
+    s1: Boolean(s1.value),
+    s2: Boolean(s2.value && s2Dimensions.every(Boolean)),
+    s3: Boolean(s3.value),
+  };
+}
+
+function setFactorSummaryState(dialogId, isSelected, selectedText) {
+  const summary = document.querySelector(`[data-dialog="${dialogId}"]`);
+  const status = summary?.querySelector('em');
+
+  summary?.classList.toggle('is-selected', isSelected);
+
+  if (status) {
+    status.textContent = isSelected ? selectedText : 'Clique para escolher';
+  }
+}
+
 function snapshotFactorDialog(dialog) {
   const inputs = [...dialog.querySelectorAll('input')];
 
@@ -910,6 +938,7 @@ async function updateFactorSummaries() {
   const s1 = getS1Config();
   const s2 = getCheckedFactor('nbrS2');
   const s3 = getCheckedFactor('nbrS3');
+  const factorState = getNbrFactorState();
   const s2Preview = await requestS2Preview();
   const s2Dimensions = [
     getValue('#nbrBuildingWidthInput'),
@@ -917,17 +946,20 @@ async function updateFactorSummaries() {
     getValue('#nbrBuildingHeightInput'),
   ].filter(Boolean);
 
-  document.querySelector('#nbrS1Summary').textContent = s1.title || 'Escolha o fator topografico';
-  document.querySelector('#nbrS1Value').textContent = formatFactorValue(s1.value);
+  document.querySelector('#nbrS1Summary').textContent = s1.title || '';
+  document.querySelector('#nbrS1Value').textContent = formatFactorValue(s1.value) || '--';
   document.querySelector('#nbrS2Summary').textContent = s2Dimensions.length
-    ? `${s2.title || 'Categoria a definir'} - ${s2Dimensions.join(' x ')} m${s2Preview?.class ? ` - Classe ${s2Preview.class}` : ''}`
-    : s2.title || 'Categoria a definir';
+    ? `${s2.title || 'Categoria não escolhida'} - ${s2Dimensions.join(' x ')} m${s2Preview?.class ? ` - Classe ${s2Preview.class}` : ''}`
+    : s2.title || '';
   document.querySelector('#nbrS2Value').textContent = formatFactorValue(s2Preview?.value) || '--';
-  document.querySelector('#nbrS3Summary').textContent = s3.title || 'Escolha o fator estatistico';
-  document.querySelector('#nbrS3Summary').textContent += document.querySelector('#nbrS3SealingCheckbox')?.checked
+  document.querySelector('#nbrS3Summary').textContent = s3.title || '';
+  document.querySelector('#nbrS3Summary').textContent += s3.value && document.querySelector('#nbrS3SealingCheckbox')?.checked
     ? ' - vedações 0,92 x S3'
     : '';
-  document.querySelector('#nbrS3Value').textContent = formatFactorValue(getEffectiveS3Value(s3.value));
+  document.querySelector('#nbrS3Value').textContent = formatFactorValue(getEffectiveS3Value(s3.value)) || '--';
+  setFactorSummaryState('s1Dialog', factorState.s1, 'S1 escolhido');
+  setFactorSummaryState('s2Dialog', factorState.s2, 'S2 escolhido');
+  setFactorSummaryState('s3Dialog', factorState.s3, 'S3 escolhido');
   renderS2Preview(s2Preview);
 }
 
@@ -1008,6 +1040,16 @@ function setPressureDetailsCollapsed(isCollapsed) {
 }
 
 async function prepareNbrCalculation() {
+  const factorState = getNbrFactorState();
+  const missingFactors = Object.entries(factorState)
+    .filter(([, isComplete]) => !isComplete)
+    .map(([factor]) => factor.toUpperCase());
+
+  if (missingFactors.length) {
+    alert(`Preencha ${missingFactors.join(', ')} antes de calcular.`);
+    return;
+  }
+
   if (!maps.nbr.marker || !maps.nbr.v0) {
     alert('Por favor, selecione um local no mapa para definir V0.');
     return;
