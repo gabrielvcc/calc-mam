@@ -238,16 +238,9 @@ def calcular_jx(pressao_ensaio, largurafol, alturafol, melast):
     jx2 = (5 * pressao_ensaio * 1e-6 * largurafol * alturafol**4) / (384 * melast * 20)
     return max(jx1, jx2)
 
-def get_s2_class(height):
-    z = float(height)
-
-    if z < 20:
-        return "A"
-
-    if z <= 50:
-        return "B"
-
-    return "C"
+def get_s2_class(_height=None):
+    # NBR 6123:2023, 6.1.1: elementos de vedação usam S2 correspondente à Classe A.
+    return "A"
 
 def calculate_s2(category, height):
     z = float(height)
@@ -267,6 +260,7 @@ def calculate_s2(category, height):
     return {
         "value": value,
         "class": s2_class,
+        "class_basis": "NBR 6123:2023, 6.1.1 - elementos de vedação",
         "meteorological": meteorological,
         "gust_factor": gust_factor,
     }

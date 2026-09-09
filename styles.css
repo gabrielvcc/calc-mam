@@ -1041,6 +1041,15 @@ dialog::backdrop {
   font-size: 28px;
 }
 
+.dialog-note {
+  display: block;
+  max-width: 460px;
+  margin-top: 6px;
+  color: var(--medium-gray);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .dialog-action {
   justify-self: end;
   min-width: 140px;

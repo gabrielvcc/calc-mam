@@ -802,7 +802,7 @@ function openCalculationDetails() {
     <section>
       <h3>S2</h3>
       <dl>
-        ${detailItem('Classe', `Classe ${s2.class}`)}
+        ${detailItem('Classe', `Classe ${s2.class} para vedações`)}
         ${detailItem('Bm', formatDetailNumber(s2.meteorological?.bm))}
         ${detailItem('p', formatDetailNumber(s2.meteorological?.p, 3))}
         ${detailItem('Fr', formatDetailNumber(s2.gust_factor))}
@@ -949,7 +949,7 @@ async function updateFactorSummaries() {
   document.querySelector('#nbrS1Summary').textContent = s1.title || '';
   document.querySelector('#nbrS1Value').textContent = formatFactorValue(s1.value) || '--';
   document.querySelector('#nbrS2Summary').textContent = s2Dimensions.length
-    ? `${s2.title || 'Categoria não escolhida'} - ${s2Dimensions.join(' x ')} m${s2Preview?.class ? ` - Classe ${s2Preview.class}` : ''}`
+    ? `${s2.title || 'Categoria não escolhida'} - ${s2Dimensions.join(' x ')} m - Classe A para vedações`
     : s2.title || '';
   document.querySelector('#nbrS2Value').textContent = formatFactorValue(s2Preview?.value) || '--';
   document.querySelector('#nbrS3Summary').textContent = s3.title || '';
@@ -1016,7 +1016,7 @@ function renderS2Preview(result = null) {
     return;
   }
 
-  classPreview.textContent = result?.class ? `Classe ${result.class}` : 'Informe a altura';
+  classPreview.textContent = result?.class ? `Classe ${result.class} para vedações` : 'Classe A para vedações';
   meteorPreview.textContent = result?.meteorological
     ? `Bm ${formatDecimal(result.meteorological.bm)} / p ${formatDecimal(result.meteorological.p, 3)}`
     : '--';
