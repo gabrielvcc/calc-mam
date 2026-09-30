@@ -815,6 +815,8 @@ function openCalculationDetails() {
         ${detailItem('Tabela / criterio', 'Tabela 6 - Cpe paredes retangulares')}
         ${detailItem('h/b', formatDetailNumber(cp.governing.h_over_b, 3))}
         ${detailItem('a/b', formatDetailNumber(cp.governing.a_over_b, 3))}
+        ${cp.interpolation ? detailItem('Interpolação', `${cp.interpolation.note}; valor ${formatDetailNumber(cp.interpolation.value, 3)} entre ${formatDetailNumber(cp.interpolation.from, 2)} e ${formatDetailNumber(cp.interpolation.to, 2)}`) : ''}
+        ${detailItem('Cpe médio', formatDetailNumber(cp.average_cpe, 3))}
         ${detailItem('Direcao', cp.governing.wind_angle)}
         ${detailItem('Zona critica', cp.governing.zone)}
         ${detailItem('Cpe', formatDetailNumber(cp.governing.cpe))}

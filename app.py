@@ -270,10 +270,60 @@ def is_inside_range(range_data, value):
     max_ok = value <= range_data["max"] if range_data.get("max_inclusive") else value < range_data["max"]
     return min_ok and max_ok
 
+def interpolate_linear(value, x1, y1, x2, y2):
+    return y1 + ((value - x1) / (x2 - x1)) * (y2 - y1)
+
+def interpolate_cpe_values(value, first_row, second_row):
+    x1 = first_row["a_over_b"]["max"]
+    x2 = second_row["a_over_b"]["min"]
+
+    def interpolate_mapping(key):
+        return {
+            zone: interpolate_linear(value, x1, cpe, x2, second_row[key][zone])
+            for zone, cpe in first_row[key].items()
+        }
+
+    return {
+        "h_over_b": first_row["h_over_b"],
+        "a_over_b": {
+            "min": x1,
+            "max": x2,
+            "min_exclusive": True,
+            "max_inclusive": False,
+        },
+        "alpha0": interpolate_mapping("alpha0"),
+        "alpha90": interpolate_mapping("alpha90"),
+        "average_cpe": interpolate_linear(value, x1, first_row["average_cpe"], x2, second_row["average_cpe"]),
+        "interpolation": {
+            "variable": "a/b",
+            "value": value,
+            "from": x1,
+            "to": x2,
+            "note": "Nota 2 da Tabela 6 - interpolação linear para 3/2 < a/b < 2",
+        },
+    }
+
 def find_facade_cpe_row(h_over_b, a_over_b):
     for row in facade_cpe_table_nbr_2023["rows"]:
         if is_inside_range(row["h_over_b"], h_over_b) and is_inside_range(row["a_over_b"], a_over_b):
             return row
+
+    if 1.5 < a_over_b < 2:
+        first_row = None
+        second_row = None
+
+        for row in facade_cpe_table_nbr_2023["rows"]:
+            if not is_inside_range(row["h_over_b"], h_over_b):
+                continue
+
+            if row["a_over_b"]["max"] == 1.5:
+                first_row = row
+            elif row["a_over_b"]["min"] == 2:
+                second_row = row
+
+        if first_row and second_row:
+            return interpolate_cpe_values(a_over_b, first_row, second_row)
+
     return None
 
 def get_facade_cpe_candidates(row):
@@ -331,6 +381,7 @@ def calculate_cp_envelope(length1, length2, height, dynamic_pressure):
         "design_pressure": q,
         "test_pressure": abs(governing["pressure"]),
         "average_cpe": table_row["average_cpe"],
+        "interpolation": table_row.get("interpolation"),
     }
 
 def calculate_dynamic_pressure(v0, s1, s2, s3):
