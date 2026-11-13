@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the Python Admin SDK, using server credentials, manages access.
+    match /calculator_access/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

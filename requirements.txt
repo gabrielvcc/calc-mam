@@ -5,3 +5,4 @@ geopandas
 shapely
 requests
 python-dotenv
+firebase-admin>=7,<8

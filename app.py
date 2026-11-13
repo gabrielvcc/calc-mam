@@ -3,17 +3,21 @@ from flask_cors import CORS
 import geopandas as gpd
 from shapely.geometry import Point
 import math
+from calculator_access import install_calculator_access
 # App Spotify
 from dotenv import load_dotenv
 import os
 from spotify_app.routes import spotify_bp
 
 load_dotenv()
+load_dotenv(".env.calculators")
 
 app = Flask(__name__)
 CORS(app, origins=["https://calculoperfil.gabrielvc.com.br", "http://127.0.0.1:5500", "https://spotify.gabrielvc.com.br"])
 
 app.register_blueprint(spotify_bp)
+
+install_calculator_access(app)
 
 geojson_path = "Regiões.geojson"
 gdf = gpd.read_file(geojson_path)
@@ -194,7 +198,7 @@ glass_deflection_alpha_table_four_sides = [
 ]
 
 monolithic_nominal_thicknesses = [4, 6, 8, 10, 12, 14, 16]
-composed_nominal_thicknesses = [6, 8, 10, 12, 14, 16]
+composed_nominal_thicknesses = [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
 
 alloy_properties = {
     "6060-T5": {
@@ -521,7 +525,9 @@ def calculate_glass_result(width_mm, height_mm, wind_pressure, glass_type_key):
     minimum_pane = glass_type.get("minimum_pane_thickness", 0)
 
     if glass_type["system"] == "monolithic":
-        calculated_total = max(required_resistance_er * e3, deflection["required_ef"])
+        required_sum_resistance = required_resistance_er * e3
+        required_sum_deflection = deflection["required_ef"]
+        calculated_total = max(required_sum_resistance, required_sum_deflection)
         required_total = max(calculated_total, minimum_pane)
         nominal_total = next_nominal_glass_thickness(required_total, False)
         checked_total = nominal_total or required_total
@@ -541,6 +547,8 @@ def calculate_glass_result(width_mm, height_mm, wind_pressure, glass_type_key):
         equivalent_resistance = checked_total / (0.9 * epsilon2 * e3)
         equivalent_deflection = checked_total / epsilon2
     elif glass_type["system"] == "insulated":
+        required_sum_resistance = None
+        required_sum_deflection = None
         epsilon1 = glass_equivalence["insulated"]["two_glasses"]
         epsilon2 = glass_equivalence["laminated"]["two_glasses"]
 
@@ -590,12 +598,18 @@ def calculate_glass_result(width_mm, height_mm, wind_pressure, glass_type_key):
         "tipo": glass_type["label"],
         "sistema": glass_type["system"],
         "espessura_calculada": calculated_total,
+        "espessura_resistencia": required_sum_resistance,
+        "espessura_flecha": required_sum_deflection,
+        "eF_minimo": deflection["required_ef"],
         "espessura_requerida": required_total,
         "espessura_minima": checked_total,
         "espessura_nominal": nominal_total,
         "fora_catalogo": nominal_total is None,
         "catalogo": composed_nominal_thicknesses if glass_type["system"] != "monolithic" else monolithic_nominal_thicknesses,
-        "max_catalogo": max(monolithic_nominal_thicknesses) + max(composed_nominal_thicknesses)
+        "max_catalogo": max(monolithic_nominal_thicknesses) + (
+            max(composed_nominal_thicknesses) if glass_type.get("composition") == "monolithic_laminated"
+            else max(monolithic_nominal_thicknesses)
+        )
         if glass_type["system"] == "insulated"
         else max(composed_nominal_thicknesses if glass_type["system"] != "monolithic" else monolithic_nominal_thicknesses),
         "vidros": panes,

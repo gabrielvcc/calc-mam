@@ -1,5 +1,6 @@
 # Arquivos de segredos
 .env
+/.env.calculators
 refresh_token.txt
 
 # Pasta de ambiente virtual do Python
@@ -14,3 +15,11 @@ __pycache__/
 
 # Outros arquivos de sistema
 .DS_Store
+
+# Capturas geradas na verificacao das calculadoras
+/tests/artifacts/
+
+# Credenciais privadas do Firebase
+/.secrets/
+*service-account*.json
+*firebase-adminsdk*.json

@@ -1,0 +1,63 @@
+<header class="access-header">
+  <a class="brand" href="/"><img src="/favicon.png" alt="" width="38" height="38"><strong>Resistência de Perfis de Alumínio · Pressão de Vento · Espessura Mínima de Vidro<small>Calculadoras</small></strong></a>
+  <div class="account-actions" id="accessAccount" hidden><span data-account-email></span><button class="secondary-btn" type="button" data-sign-out><i data-lucide="log-out" aria-hidden="true"></i>Sair</button></div>
+</header>
+
+<main class="access-main">
+  <section class="login-view" id="loginSection">
+    <p class="eyebrow">Área restrita</p>
+    <h1>Acesso às calculadoras</h1>
+    <p class="access-copy">Entre com a conta Google autorizada pelo administrador.</p>
+    <button class="primary-btn access-login" id="googleLoginBtn" type="button" disabled><i data-lucide="log-in" aria-hidden="true"></i>Entrar com Google</button>
+    <p class="access-error" id="loginError" role="alert" hidden></p>
+    <button class="text-action" id="retryAccessBtn" type="button" hidden>Tentar novamente</button>
+    <div class="access-contact"><p>Ainda não tem acesso?</p><button class="secondary-btn" type="button" data-request-access>Solicitar acesso</button><a data-contact-email href="mailto:eng@gabrielvc.com.br">eng@gabrielvc.com.br</a></div>
+  </section>
+
+  <section class="login-view" id="deniedSection" hidden>
+    <p class="eyebrow">Acesso restrito</p><h1 id="deniedTitle">Você não está na lista de acesso</h1>
+    <p class="access-copy" id="deniedMessage">Seu e-mail ainda não está autorizado. Entre em contato com o responsável para solicitar a liberação.</p>
+    <p class="denied-email" data-account-email></p>
+    <div class="access-buttons"><button class="primary-btn" type="button" data-request-access>Solicitar acesso</button><a class="secondary-btn" href="/">Calculadoras</a></div>
+    <a class="contact-link" data-contact-email href="mailto:eng@gabrielvc.com.br">eng@gabrielvc.com.br</a>
+    <button class="text-action" type="button" data-sign-out>Usar outra conta</button>
+  </section>
+
+  <section id="portalSection" hidden>
+    <div class="portal-heading"><div><p class="eyebrow">Área de trabalho</p><h1>Calculadoras</h1></div><a class="secondary-btn" id="adminLink" href="/administracao/" hidden><i data-lucide="users" aria-hidden="true"></i>Gerenciar acessos</a></div>
+    <div class="portal-apps" id="portalApps"></div>
+    <button class="text-action" type="button" data-request-access>Solicitar outros acessos</button>
+  </section>
+
+  <section id="adminSection" hidden>
+    <div class="portal-heading"><div><p class="eyebrow">Administração</p><h1>Permissões de acesso</h1></div><a class="secondary-btn" href="/">Calculadoras</a></div>
+    <form class="access-editor" id="accessEditor">
+      <label for="grantEmail">E-mail autorizado<input id="grantEmail" type="email" required autocomplete="off" placeholder="pessoa@exemplo.com"></label>
+      <fieldset class="permission-fields"><legend>Calculadoras liberadas</legend>
+        <label><input type="checkbox" name="grantApp" value="complete">Cálculo completo</label>
+        <label><input type="checkbox" name="grantApp" value="profiles">Resistência de perfis</label>
+        <label><input type="checkbox" name="grantApp" value="glass">Espessura de vidro</label>
+        <label><input type="checkbox" name="grantApp" value="wind">Pressão de vento</label>
+      </fieldset>
+      <p class="permission-note">O vidro dentro do cálculo completo também exige a permissão “Espessura de vidro”.</p>
+      <label class="inline-check"><input id="grantActive" type="checkbox" checked>Acesso ativo</label>
+      <div class="access-buttons"><button class="primary-btn" type="submit" id="saveGrantBtn"><i data-lucide="save" aria-hidden="true"></i>Salvar permissão</button><button class="secondary-btn" type="reset">Limpar</button></div>
+      <p id="adminMessage" role="status" hidden></p>
+    </form>
+    <div class="access-list-heading"><h2>E-mails cadastrados</h2><button class="secondary-btn" id="reloadGrantsBtn" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Atualizar</button></div>
+    <div class="alloy-table-wrap"><table class="alloy-table access-table"><thead><tr><th>E-mail</th><th>Status</th><th>Calculadoras</th><th>Ações</th></tr></thead><tbody id="grantsList"></tbody></table></div>
+  </section>
+</main>
+
+<footer id="bottom-bar"><p>developed by <a href="https://github.com/gabrielvcc" target="_blank" rel="noopener">gabrielvc</a> | <a href="#">v2.0.2</a></p></footer>
+
+<dialog id="requestAccessDialog">
+  <form class="dialog-content request-form" id="requestAccessForm">
+    <div class="dialog-heading"><h2>Solicitar acesso</h2><button class="icon-btn" type="button" aria-label="Fechar" id="closeRequestBtn"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <label for="requestName">Nome<input id="requestName" required autocomplete="name"></label>
+    <label for="requestEmail">E-mail da conta Google<input id="requestEmail" type="email" required autocomplete="email"></label>
+    <label for="requestMessage">Mensagem<textarea id="requestMessage" rows="4" maxlength="2000" placeholder="Quais calculadoras você deseja utilizar?"></textarea></label>
+    <a data-contact-email href="mailto:eng@gabrielvc.com.br">eng@gabrielvc.com.br</a>
+    <button class="primary-btn" type="submit"><i data-lucide="mail" aria-hidden="true"></i>Enviar por e-mail</button>
+  </form>
+</dialog>

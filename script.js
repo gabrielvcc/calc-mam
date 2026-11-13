@@ -1,12 +1,9 @@
-const views = document.querySelectorAll('.view');
-const homeView = document.querySelector('#homeView');
-const openButtons = document.querySelectorAll('.open-view, .choice-panel');
-const backButtons = document.querySelectorAll('.back-btn');
+import { apiBaseUrl, authorizedFetch, canUse, getProfile, signOut } from './auth-client.js';
+
 const dialogButtons = document.querySelectorAll('[data-dialog]');
 const closeDialogButtons = document.querySelectorAll('[data-close-dialog]');
 const applyFactorButtons = document.querySelectorAll('[data-apply-factor]');
 
-const apiBaseUrl = 'https://api.calculoperfil.gabrielvc.com.br';
 const apiUrl = `${apiBaseUrl}/pressaovento`;
 const regionUrl = `${apiBaseUrl}/regiaovento`;
 const s2PreviewUrl = `${apiBaseUrl}/nbr6123/s2`;
@@ -31,42 +28,187 @@ const maps = {
 };
 
 const factorDialogState = {};
+const appTitle = 'Resistência de Perfis de Alumínio · Pressão de Vento · Espessura Mínima de Vidro';
+const toolDefinitions = {
+  complete: { path: '/calculo-completo/', title: 'Cálculo completo', detail: 'Resistência de Perfis de Alumínio + Pressão de Vento + Espessura Mínima de Vidro', scope: '', method: 'tabled' },
+  profiles: { path: '/resistencia-perfis/', title: 'Resistência de perfis', scope: 'Wx e Jx', method: 'manual' },
+  glass: { path: '/espessura-vidro/', title: 'Espessura de vidro mínima', scope: 'NBR 7199', method: 'manual' },
+  wind: { path: '/pressao-vento/', title: 'Pressão de vento', scope: 'Pressão de ensaio', method: 'tabled' },
+};
+const methodQuery = { tabled: 'tabela', nbr: 'nbr6123', manual: 'manual' };
+const frameSelectors = {
+  largura: '#frameWidthInput', altura: '#frameHeightInput', folhas: '#frameLeavesInput',
+  glassSection: '#glassSection', glassWidth: '#glassWidthInput', glassHeight: '#glassHeightInput',
+};
+let activeTool = 'complete';
+let activeMethod = 'tabled';
+let lastCalculation = null;
+let lastPressure = null;
+let inputRevision = 0;
+let isCalculating = false;
+let regionRequestId = 0;
 let lastNbrCalculation = null;
 let lastGlassCalculation = null;
 let selectedAlloy = '6060-T5';
 let selectedGlassType = 'monolitico_float';
 let selectedGlassLabel = 'Monolítico float';
 
-function showView(viewId) {
-  views.forEach((view) => {
-    view.classList.toggle('active', view.id === viewId);
-  });
+function routeTool() {
+  const path = location.pathname.replace(/\/index\.html$/, '/').replace(/\/$/, '') || '/';
+  return Object.keys(toolDefinitions).find((key) => (toolDefinitions[key].path.replace(/\/$/, '') || '/') === path) || 'complete';
+}
 
-  if (viewId === 'tabledView') {
-    initMap('tabled');
-    setTimeout(() => maps.tabled.instance?.invalidateSize(), 0);
+function updateRoute(push = false) {
+  const url = new URL(toolDefinitions[activeTool].path, location.origin);
+  url.searchParams.set('metodo', methodQuery[activeMethod]);
+  history[push ? 'pushState' : 'replaceState']({}, '', url);
+}
+
+function updateGlassLayout() {
+  const standalone = activeTool === 'glass';
+  const section = document.querySelector('#glassSection');
+  if (!canUse('glass')) document.querySelector('#includeGlassInput').checked = false;
+  section.hidden = !canUse('glass') || activeTool === 'profiles' || activeTool === 'wind';
+  section.classList.toggle('is-active', standalone || document.querySelector('#includeGlassInput').checked);
+  section.querySelector('.section-number').textContent = standalone ? '02' : '03';
+  document.querySelector('#includeGlassControl').hidden = activeTool !== 'complete';
+  document.querySelector('#sameGlassControl').hidden = activeTool !== 'complete';
+  updateSameGlassDimensions({ checked: activeTool === 'complete' && document.querySelector('#sameGlassInput').checked }, section, frameSelectors);
+}
+
+function selectTool(tool, push = false) {
+  if (!canUse(tool)) {
+    window.location.href = toolDefinitions[tool].path;
+    return;
   }
-
-  if (viewId === 'nbrView') {
-    initMap('nbr');
-    setTimeout(() => maps.nbr.instance?.invalidateSize(), 0);
+  activeTool = tool;
+  inputRevision += 1;
+  const definition = toolDefinitions[tool];
+  document.body.dataset.tool = tool;
+  document.title = tool === 'complete' ? appTitle : `${definition.title} | ${appTitle}`;
+  const heading = document.querySelector('#toolTitle');
+  heading.textContent = definition.title;
+  if (definition.detail) {
+    const detail = document.createElement('span');
+    detail.className = 'tool-title-detail';
+    detail.textContent = definition.detail;
+    heading.append(' ', detail);
+  }
+  document.querySelector('#toolScope').textContent = definition.scope;
+  document.querySelector('#toolScope').hidden = !definition.scope;
+  document.querySelector('#manualTab').hidden = tool === 'wind';
+  if (tool === 'wind' && activeMethod === 'manual') selectMethod('tabled', false);
+  document.querySelector('#frameSection').hidden = tool === 'glass' || tool === 'wind';
+  document.querySelectorAll('.app-navigation a').forEach((link) => {
+    link.hidden = !canUse(link.dataset.tool);
+    if (link.dataset.tool === tool) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  updateGlassLayout();
+  clearError();
+  renderResults(lastCalculation);
+  if (push) {
+    updateRoute(true);
+    document.querySelector('#toolTitle').focus({ preventScroll: true });
   }
 }
 
-openButtons.forEach((element) => {
-  element.addEventListener('click', (event) => {
-    event.stopPropagation();
-
-    const target = event.currentTarget.dataset.target;
-
-    if (target) {
-      showView(target);
+function selectMethod(method, updateUrl = true) {
+  if (activeTool === 'wind' && method === 'manual') method = 'tabled';
+  const changed = activeMethod !== method;
+  activeMethod = method;
+  if (changed) invalidateResults(true);
+  document.querySelectorAll('[data-method]').forEach((button) => {
+    const selected = button.dataset.method === method;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    document.getElementById(button.getAttribute('aria-controls')).hidden = !selected;
+  });
+  document.querySelector('#tabledMapPanel').hidden = method !== 'tabled';
+  document.querySelector('#nbrMapPanel').hidden = method !== 'nbr';
+  document.querySelector('#calculatorWorkspace').classList.toggle('manual-workspace', method === 'manual');
+  if (method !== 'manual') {
+    const initialized = Boolean(maps[method].instance);
+    initMap(method);
+    if (initialized && method === 'nbr' && maps.nbr.marker && !maps.nbr.v0) {
+      const point = maps.nbr.marker.getLatLng();
+      updateNbrWindRegion(point.lat, point.lng);
     }
+    requestAnimationFrame(() => maps[method].instance?.invalidateSize());
+  }
+  clearError();
+  updateReusePressure();
+  if (updateUrl) updateRoute();
+}
+
+function clearError() {
+  document.querySelector('#calculationError').hidden = true;
+  document.querySelectorAll('[aria-invalid]').forEach((input) => input.removeAttribute('aria-invalid'));
+}
+
+function reportError(message, selector = null) {
+  const error = document.querySelector('#calculationError');
+  error.textContent = message;
+  error.hidden = false;
+  const input = selector && document.querySelector(selector);
+  if (input) {
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+  }
+}
+
+function invalidateResults(pressureChanged = false) {
+  inputRevision += 1;
+  const pressureResult = !pressureChanged && lastCalculation ? { ...lastCalculation } : null;
+  if (pressureResult) {
+    delete pressureResult.wx;
+    delete pressureResult.jx;
+    delete pressureResult.liga;
+    delete pressureResult.vidro;
+  }
+  lastCalculation = pressureResult;
+  lastNbrCalculation = pressureResult?.cp ? pressureResult : null;
+  lastGlassCalculation = null;
+  if (pressureChanged) {
+    setPressureDetailsCollapsed(false);
+    document.querySelector('#nbrPressureFinalValue').textContent = '-- Pa';
+  }
+  renderResults(lastCalculation);
+}
+
+function updateReusePressure() {
+  const button = document.querySelector('#reusePressureBtn');
+  button.hidden = !Number.isFinite(lastPressure?.value) || activeMethod !== 'manual';
+  button.textContent = lastPressure ? `Usar última pressão: ${formatDetailNumber(lastPressure.value)} Pa` : '';
+}
+
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[data-tool]');
+  if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  selectTool(link.dataset.tool, true);
+});
+
+document.querySelectorAll('[data-method]').forEach((button) => {
+  button.addEventListener('click', () => selectMethod(button.dataset.method));
+  button.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...document.querySelectorAll('[data-method]')].filter((tab) => !tab.hidden);
+    const index = buttons.indexOf(button);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+      : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next].focus();
+    buttons[next].click();
   });
 });
 
-backButtons.forEach((button) => {
-  button.addEventListener('click', () => showView(homeView.id));
+window.addEventListener('popstate', () => {
+  document.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close('cancel'));
+  selectTool(routeTool());
+  const method = new URLSearchParams(location.search).get('metodo');
+  selectMethod(Object.keys(methodQuery).find((key) => methodQuery[key] === method) || toolDefinitions[activeTool].method, false);
+  if (activeTool === 'wind' && method === 'manual') updateRoute();
 });
 
 dialogButtons.forEach((button) => {
@@ -94,6 +236,7 @@ applyFactorButtons.forEach((button) => {
     if (dialog) {
       factorDialogState[dialog.id] = { ...factorDialogState[dialog.id], applied: true };
       updateFactorSummaries();
+      invalidateResults(true);
       dialog.close('apply');
     }
   });
@@ -106,23 +249,21 @@ document.querySelectorAll('dialog').forEach((dialog) => {
     }
   });
 
-  dialog.addEventListener('close', () => {
+  const finishDialog = () => {
     if (!factorDialogState[dialog.id]) {
       return;
     }
 
     if (!factorDialogState[dialog.id].applied) {
       restoreFactorDialog(dialog);
+      updateFactorSummaries();
+      updateS1SlopeVisibility();
     }
 
     delete factorDialogState[dialog.id];
-  });
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    showView(homeView.id);
-  }
+  };
+  dialog.addEventListener('close', finishDialog);
+  dialog.addEventListener('cancel', finishDialog);
 });
 
 function initMap(key) {
@@ -142,6 +283,10 @@ function initMap(key) {
   state.instance.on('click', (event) => {
     updateMarker(key, event.latlng.lat, event.latlng.lng, { recenter: false });
   });
+
+  if (state.coordinates) {
+    updateMarker(key, state.coordinates.lat, state.coordinates.lng, { recenter: false });
+  }
 }
 
 function updateMarker(key, lat, lon, options = {}) {
@@ -163,6 +308,19 @@ function updateMarker(key, lat, lon, options = {}) {
     state.instance.setView([lat, lon], 13);
   }
 
+  const locationChanged = !state.coordinates || state.coordinates.lat !== lat || state.coordinates.lng !== lon;
+  state.coordinates = { lat, lng: lon };
+  const other = maps[key === 'tabled' ? 'nbr' : 'tabled'];
+  other.coordinates = state.coordinates;
+  other.marker?.setLatLng([lat, lon]);
+  if (key === 'tabled' && locationChanged) {
+    regionRequestId += 1;
+    maps.nbr.region = null;
+    maps.nbr.v0 = null;
+    document.querySelector('#nbrV0Input').value = '';
+    document.querySelector('#nbrRegionInput').value = '';
+  }
+  invalidateResults(true);
   config.onMarkerChange?.(lat, lon);
 }
 
@@ -205,18 +363,24 @@ async function searchLocation(key) {
 }
 
 async function updateNbrWindRegion(lat, lon) {
+  const requestId = ++regionRequestId;
+  maps.nbr.region = null;
+  maps.nbr.v0 = null;
+  document.querySelector('#nbrRegionInput').value = '';
+  document.querySelector('#nbrV0Input').value = '';
   try {
-    const response = await fetch(regionUrl, {
+    const response = await authorizedFetch(regionUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ latitude: lat, longitude: lon }),
-    });
+    }, activeTool);
 
     if (!response.ok) {
       throw new Error('Ponto fora das regiões cadastradas.');
     }
 
     const data = await response.json();
+    if (requestId !== regionRequestId) return;
     maps.nbr.region = data.regiao;
     maps.nbr.v0 = data.v0;
 
@@ -224,8 +388,8 @@ async function updateNbrWindRegion(lat, lon) {
     document.querySelector('#nbrV0Input').value = data.v0;
     document.querySelector('#nbrPressureFinalValue').textContent = '-- Pa';
     setPressureDetailsCollapsed(false);
-    renderNbrDraftResult();
   } catch (error) {
+    if (requestId !== regionRequestId) return;
     console.error('Erro ao buscar região de vento:', error);
     maps.nbr.region = null;
     maps.nbr.v0 = null;
@@ -368,12 +532,24 @@ function updateS1SlopeVisibility() {
   slopeOptions?.classList.toggle('is-visible', selected.value === 'slope');
 }
 
-function addFrameData(requestData, selectors) {
+function addFrameData(requestData, selectors = frameSelectors) {
   const larguratotal = getValue(selectors.largura);
   const quantidadefol = getValue(selectors.folhas);
   const alturafol = getValue(selectors.altura);
 
-  if (larguratotal && quantidadefol && alturafol) {
+  const needsFrame = activeTool === 'profiles' || (activeTool === 'complete' && [larguratotal, quantidadefol, alturafol].some(Boolean));
+  if (needsFrame) {
+    const fields = [[selectors.largura, larguratotal, 'largura'], [selectors.altura, alturafol, 'altura'], [selectors.folhas, quantidadefol, 'quantidade de folhas']];
+    for (const [selector, value, label] of fields) {
+      if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
+        reportError(`Informe uma ${label} válida para a esquadria.`, selector);
+        return false;
+      }
+    }
+    if (!Number.isInteger(Number(quantidadefol))) {
+      reportError('A quantidade de folhas deve ser um número inteiro.', selectors.folhas);
+      return false;
+    }
     requestData.larguratotal = larguratotal;
     requestData.quantidadefol = quantidadefol;
     requestData.alturafol = alturafol;
@@ -382,11 +558,11 @@ function addFrameData(requestData, selectors) {
 
   const glassSection = selectors.glassSection ? document.querySelector(selectors.glassSection) : null;
 
-  if (!glassSection?.classList.contains('is-active')) {
+  if (!canUse('glass') || (activeTool !== 'glass' && !(activeTool === 'complete' && glassSection?.classList.contains('is-active')))) {
     return true;
   }
 
-  const sameGlassDimensions = glassSection.querySelector('[data-glass-same]')?.checked;
+  const sameGlassDimensions = activeTool === 'complete' && document.querySelector('#sameGlassInput').checked;
   let glassWidth = getValue(selectors.glassWidth);
   let glassHeight = getValue(selectors.glassHeight);
 
@@ -394,7 +570,7 @@ function addFrameData(requestData, selectors) {
     const dimensions = getFrameGlassDimensions(selectors);
 
     if (!dimensions) {
-      alert('Preencha largura, altura e folhas da esquadria para usar a mesma dimensão no vidro.');
+      reportError('Preencha largura, altura e folhas da esquadria para usar a mesma dimensão no vidro.', selectors.largura);
       return false;
     }
 
@@ -403,9 +579,11 @@ function addFrameData(requestData, selectors) {
     syncGlassDimensionFields(glassSection, dimensions);
   }
 
-  if (!glassWidth || !glassHeight) {
-    alert('Informe a largura e a altura do vidro, ou feche a opção de cálculo do vidro.');
-    return false;
+  for (const [selector, value, label] of [[selectors.glassWidth, glassWidth, 'largura'], [selectors.glassHeight, glassHeight, 'altura']]) {
+    if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
+      reportError(`Informe a ${label} do vidro.`, selector);
+      return false;
+    }
   }
 
   requestData.calcular_vidro = true;
@@ -491,67 +669,62 @@ function setSelectedGlass(button) {
   });
 }
 
-async function sendToServer(requestData) {
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestData),
-    });
-
-    if (!response.ok) {
-      throw new Error('Erro ao se comunicar com o servidor.');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Erro:', error);
-    return { pressao_ensaio: 'Erro', wx: 'N/A', jx: 'N/A' };
+async function requestCalculation(url, payload) {
+  const response = await authorizedFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, activeTool);
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) throw new Error(data?.error || 'Não foi possível calcular. Tente novamente.');
+  if (!Number.isFinite(data.pressao_ensaio)) throw new Error('O servidor não retornou uma pressão válida.');
+  if (payload.calcular_vidro && !data.vidro) throw new Error('O servidor não retornou o cálculo de vidro. Confira as medidas informadas.');
+  if (payload.larguratotal && (!Number.isFinite(data.wx) || !Number.isFinite(data.jx))) {
+    throw new Error('O servidor não retornou o cálculo do perfil. Confira as medidas e a liga.');
   }
+  return data;
 }
 
-function formatNumber(value, formatter) {
-  return value !== undefined && value !== null && value !== 'N/A' ? formatter(value) : 'N/A';
-}
-
-function displayResult(containerSelector, response) {
-  const resultsSection = document.querySelector(containerSelector);
-  const pressao = response.pressao_ensaio;
-  const wx = response.wx;
-  const jx = response.jx;
-  const vidro = response.vidro;
-
-  logGlassCalculation(response);
-  lastGlassCalculation = vidro || null;
-
-  const pressaoFormatada = typeof pressao === 'number' ? Math.round(pressao).toLocaleString('pt-BR') : pressao;
-  const wxFormatado = formatNumber(wx, (value) => Math.ceil(value).toLocaleString('pt-BR'));
-  const jxFormatado = formatNumber(jx, (value) => Number.parseInt(value, 10).toLocaleString('pt-BR'));
-  const vidroFormatado = vidro?.espessura_minima
-    ? formatGlassResult(vidro)
-    : 'N/A';
-  const vidroDescricao = vidro ? getGlassCompositionLabel(vidro) : selectedGlassLabel;
-  const vidroHtml = vidro
-    ? `
-      <div class="result-with-action">
-        <dt>Vidro mínimo</dt>
-        <dd><span>${vidroFormatado}</span><small>${vidroDescricao}</small></dd>
-        <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
-      </div>
-    `
-    : '';
-
-  resultsSection.innerHTML = `
+function renderResults(response = null) {
+  const results = document.querySelector('#results');
+  const hasPressure = Number.isFinite(response?.pressao_ensaio);
+  const frameVisible = activeTool === 'complete' || activeTool === 'profiles';
+  const glassVisible = activeTool === 'glass' || (activeTool === 'complete' && document.querySelector('#includeGlassInput').checked);
+  const glass = response?.vidro;
+  lastNbrCalculation = response?.cp ? response : null;
+  lastGlassCalculation = glass || null;
+  const frameHtml = frameVisible ? `
+    <div class="result-highlight"><dt>Wx necessário</dt><dd><span>${Number.isFinite(response?.wx) ? Math.ceil(response.wx).toLocaleString('pt-BR') : '--'}</span><small>mm³</small></dd></div>
+    <div class="result-highlight"><dt>Jx necessário</dt><dd><span>${Number.isFinite(response?.jx) ? Number.parseInt(response.jx, 10).toLocaleString('pt-BR') : '--'}</span><small>mm⁴</small></dd></div>
+  ` : '';
+  const glassHtml = glassVisible ? `
+    <div class="result-with-action ${activeTool === 'glass' ? 'result-highlight' : ''}">
+      <dt>Vidro mínimo</dt>
+      <dd><span>${glass ? formatGlassResult(glass) : '--'}</span>${glass ? `<small>${getGlassCompositionLabel(glass)}</small>` : ''}</dd>
+      ${glass ? '<button class="detail-btn" type="button" data-glass-details>Detalhes</button>' : ''}
+    </div>
+  ` : '';
+  results.innerHTML = `
     <h2>Resultados</h2>
     <dl>
-      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${wxFormatado}</span><small>mm³</small></dd></div>
-      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${jxFormatado}</span><small>mm⁴</small></dd></div>
-      <div><dt>Pressao de ensaio</dt><dd><span>${pressaoFormatada}</span><small>Pa</small></dd></div>
-      ${vidroHtml}
+      ${frameHtml}
+      ${glassHtml}
+      <div class="result-with-action ${activeTool === 'wind' ? 'result-highlight' : ''}">
+        <dt>Pressão de ensaio</dt>
+        <dd><span>${hasPressure ? Math.round(response.pressao_ensaio).toLocaleString('pt-BR') : '--'}</span><small>Pa</small></dd>
+        ${response?.cp ? '<button class="detail-btn" type="button" data-pressure-details>Detalhes</button>' : ''}
+      </div>
     </dl>
+    ${!hasPressure ? '<p class="result-empty">Aguardando cálculo</p>' : ''}
+    ${hasPressure && activeTool === 'wind' && (canUse('profiles') || canUse('glass')) ? `
+      <nav class="result-next" aria-label="Continuar cálculo">
+        ${canUse('profiles') ? '<a href="/resistencia-perfis/" data-tool="profiles">Calcular perfis <span aria-hidden="true">→</span></a>' : ''}
+        ${canUse('glass') ? '<a href="/espessura-vidro/" data-tool="glass">Calcular vidro <span aria-hidden="true">→</span></a>' : ''}
+      </nav>
+    ` : ''}
   `;
-
-  resultsSection.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
+  results.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
+  results.querySelector('[data-pressure-details]')?.addEventListener('click', openCalculationDetails);
 }
 
 function logGlassCalculation(response) {
@@ -605,44 +778,54 @@ function formatGlassResult(glass) {
   return `${Number(glass.espessura_minima).toLocaleString('pt-BR')} mm`;
 }
 
-async function calculateByLocation() {
-  const marker = maps.tabled.marker;
-
-  if (!marker) {
-    alert('Por favor, selecione um local no mapa.');
-    return;
-  }
-
-  const pavimentos = getValue('#pavimentosInput');
-
-  if (!pavimentos) {
-    alert('Por favor, insira a quantidade de pavimentos.');
-    return;
-  }
-
-  const requestData = {
-    latitude: marker.getLatLng().lat,
-    longitude: marker.getLatLng().lng,
-    pavimentos,
-  };
-
-  if (!addFrameData(requestData, {
-    largura: '#larguraInput',
-    altura: '#alturafolInput',
-    folhas: '#quantidadefolInput',
-    glassSection: '#tabledGlassSection',
-    glassWidth: '#tabledGlassWidthInput',
-    glassHeight: '#tabledGlassHeightInput',
-  })) {
-    return;
-  }
-
-  const response = await sendToServer(requestData);
-
-  if (response.pressao_ensaio) {
-    displayResult('#results', response);
+async function calculate(event) {
+  event.preventDefault();
+  if (isCalculating) return;
+  clearError();
+  let payload;
+  if (activeMethod === 'tabled') {
+    if (!maps.tabled.marker) return reportError('Selecione o local da edificação no mapa.', '#addressInput');
+    const floors = Number(getValue('#pavimentosInput'));
+    if (!Number.isInteger(floors) || floors <= 0) return reportError('Informe a quantidade de pavimentos.', '#pavimentosInput');
+    const point = maps.tabled.marker.getLatLng();
+    payload = { latitude: point.lat, longitude: point.lng, pavimentos: floors };
+  } else if (activeMethod === 'nbr') {
+    const missing = Object.entries(getNbrFactorState()).filter(([, complete]) => !complete).map(([factor]) => factor.toUpperCase());
+    if (missing.length) return reportError(`Preencha ${missing.join(', ')} antes de calcular.`);
+    if (!maps.nbr.marker || !maps.nbr.v0) return reportError('Selecione o local da edificação no mapa para definir V0.', '#nbrAddressInput');
+    payload = getNbrPayload();
   } else {
-    alert('Erro ao calcular. Verifique os dados inseridos.');
+    const pressure = Number(getValue('#manualPressaoInput'));
+    if (!Number.isFinite(pressure) || pressure <= 0) return reportError('Informe uma pressão de ensaio maior que zero.', '#manualPressaoInput');
+    payload = { pressao_personalizada: pressure };
+  }
+  if (!addFrameData(payload)) return;
+  const revision = inputRevision;
+  const method = activeMethod;
+  const button = document.querySelector('#calculateBtn');
+  isCalculating = true;
+  button.disabled = true;
+  button.querySelector('span').textContent = 'Calculando...';
+  document.querySelector('#results').setAttribute('aria-busy', 'true');
+  try {
+    const data = await requestCalculation(method === 'nbr' ? nbrCalcUrl : apiUrl, payload);
+    if (revision !== inputRevision) return;
+    lastCalculation = data;
+    lastPressure = { value: data.pressao_ensaio, method };
+    renderResults(data);
+    logGlassCalculation(data);
+    if (method === 'nbr') {
+      document.querySelector('#nbrPressureFinalValue').textContent = `${Math.round(data.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
+      setPressureDetailsCollapsed(true);
+    }
+    updateReusePressure();
+  } catch (error) {
+    if (revision === inputRevision) reportError(error.message || 'Não foi possível calcular agora.');
+  } finally {
+    isCalculating = false;
+    button.disabled = false;
+    button.querySelector('span').textContent = 'Calcular';
+    document.querySelector('#results').removeAttribute('aria-busy');
   }
 }
 
@@ -669,73 +852,9 @@ function getNbrPayload() {
     payload.longitude = marker.getLatLng().lng;
   }
 
-  if (!addFrameData(payload, {
-    largura: '#nbrLarguraInput',
-    altura: '#nbrAlturaInput',
-    folhas: '#nbrFolhasInput',
-    glassSection: '#nbrGlassSection',
-    glassWidth: '#nbrGlassWidthInput',
-    glassHeight: '#nbrGlassHeightInput',
-  })) {
-    return null;
-  }
-
   return payload;
 }
 
-function renderNbrDraftResult() {
-  const resultsSection = document.querySelector('#nbrResults');
-  resultsSection.innerHTML = `
-    <h2>Resultados</h2>
-    <dl>
-      <div><dt>Pressao de ensaio</dt><dd><span>Aguardando</span><small>calculo</small></dd></div>
-      <div><dt>Esquadria</dt><dd>Nao calculada</dd></div>
-    </dl>
-  `;
-}
-
-function renderNbrCalculatedResult(response) {
-  const resultsSection = document.querySelector('#nbrResults');
-  const pressureLabel = `${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
-  lastNbrCalculation = response;
-  lastGlassCalculation = response.vidro || null;
-  logGlassCalculation(response);
-  const glassHtml = response.vidro
-    ? `
-      <div class="result-with-action">
-        <dt>Vidro mínimo</dt>
-        <dd><span>${formatGlassResult(response.vidro)}</span><small>${getGlassCompositionLabel(response.vidro)}</small></dd>
-        <button class="detail-btn" type="button" data-glass-details>Detalhes</button>
-      </div>
-    `
-    : '';
-  const frameHtml = response.wx && response.jx
-    ? `
-      <div class="result-highlight"><dt>Wx necessario</dt><dd><span>${Math.ceil(response.wx).toLocaleString('pt-BR')}</span><small>mm³</small></dd></div>
-      <div class="result-highlight"><dt>Jx necessario</dt><dd><span>${Number.parseInt(response.jx, 10).toLocaleString('pt-BR')}</span><small>mm⁴</small></dd></div>
-      ${glassHtml}
-    `
-    : `
-      <div><dt>Esquadria</dt><dd>Preencha largura, altura e folhas para calcular.</dd></div>
-      ${glassHtml}
-    `;
-
-  resultsSection.innerHTML = `
-    <h2>Resultados</h2>
-    <dl>
-      ${frameHtml}
-      <div class="result-with-action">
-        <dt>Pressao de ensaio</dt>
-        <dd><span>${Math.round(response.pressao_ensaio).toLocaleString('pt-BR')}</span><small>Pa</small></dd>
-        <button class="detail-btn" type="button" id="calculationDetailsBtn">Detalhes</button>
-      </div>
-    </dl>
-  `;
-
-  document.querySelector('#nbrPressureFinalValue').textContent = pressureLabel;
-  document.querySelector('#calculationDetailsBtn')?.addEventListener('click', openCalculationDetails);
-  resultsSection.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
-}
 
 function getGlassCompositionLabel(glass) {
   if (glass?.componentes?.length) {
@@ -842,7 +961,7 @@ function openCalculationDetails() {
           ${detailItem('Tipo', glass.tipo)}
           ${detailItem('Dimensao do modulo', `${formatGlassThickness(glass.largura_vidro)} x ${formatGlassThickness(glass.altura_vidro)} mm`)}
           ${detailItem('e1', `${formatGlassThickness(glass.e1)} mm`)}
-          ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
+          ${detailItem('Espessura total calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
           ${detailItem('Espessura requerida', `${formatGlassThickness(glass.espessura_requerida)} mm`)}
           ${detailItem('eR', `${formatGlassThickness(glass.eR)} mm`)}
           ${detailItem('eF', `${formatGlassThickness(glass.eF)} mm`)}
@@ -904,7 +1023,8 @@ function openGlassDetails() {
       <dl>
         ${detailItem('Verificação', 'eR >= e1 x c')}
         ${detailItem('e1 x c', `${formatGlassThickness(glass.e1 * glass.c)} mm`)}
-        ${detailItem('eR da composição', `${formatGlassThickness(glass.eR)} mm`)}
+        ${detailItem('eR equivalente da composição', `${formatGlassThickness(glass.eR)} mm`)}
+        ${glass.espessura_resistencia != null ? detailItem('Espessura total mínima por resistência', `${formatGlassThickness(glass.espessura_resistencia)} mm`) : ''}
         ${detailItem('Fator ε3', formatDetailNumber(glass.e3))}
       </dl>
     </section>
@@ -915,7 +1035,9 @@ function openGlassDetails() {
         ${detailItem('Fórmula', 'f = α x (P / 1,5) x b⁴ / eF³')}
         ${detailItem('l/L', formatDetailNumber(glass.relacao_l_L, 3))}
         ${detailItem('α', formatDetailNumber(glass.alpha, 4))}
-        ${detailItem('eF da composição', `${formatGlassThickness(glass.eF)} mm`)}
+        ${glass.eF_minimo != null ? detailItem('eF equivalente mínimo', `${formatGlassThickness(glass.eF_minimo)} mm`) : ''}
+        ${detailItem('eF equivalente da composição', `${formatGlassThickness(glass.eF)} mm`)}
+        ${glass.espessura_flecha != null ? detailItem('Espessura total mínima por flecha', `${formatGlassThickness(glass.espessura_flecha)} mm`) : ''}
         ${detailItem('Flecha calculada', `${formatGlassThickness(glass.flecha)} mm`)}
         ${detailItem('Flecha limite', `${formatGlassThickness(glass.flecha_limite)} mm`)}
       </dl>
@@ -924,8 +1046,8 @@ function openGlassDetails() {
     <section>
       <h3>Resultado</h3>
       <dl>
-        ${detailItem('Espessura calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
-        ${detailItem('Após mínimo normativo', `${formatGlassThickness(glass.espessura_requerida)} mm`)}
+        ${detailItem('Espessura total calculada', `${formatGlassThickness(glass.espessura_calculada)} mm`)}
+        ${detailItem('Após mínimo por lâmina', `${formatGlassThickness(glass.espessura_requerida)} mm`)}
         ${detailItem('Espessura comercial', formatGlassResult(glass))}
         ${detailItem('Catálogo usado', glass.catalogo.map((value) => `${value} mm`).join(', '))}
         ${glass.observacao_camera ? detailItem('Câmara', 'A câmara do insulado é definida à parte e não entra nessa espessura de vidro') : ''}
@@ -988,14 +1110,14 @@ async function requestS2Preview() {
   }
 
   try {
-    const response = await fetch(s2PreviewUrl, {
+    const response = await authorizedFetch(s2PreviewUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         categoria: s2.value,
         altura: height,
       }),
-    });
+    }, activeTool);
 
     if (!response.ok) {
       return null;
@@ -1041,81 +1163,6 @@ function setPressureDetailsCollapsed(isCollapsed) {
   button.textContent = isCollapsed ? 'Editar parametros' : 'Minimizar';
 }
 
-async function prepareNbrCalculation() {
-  const factorState = getNbrFactorState();
-  const missingFactors = Object.entries(factorState)
-    .filter(([, isComplete]) => !isComplete)
-    .map(([factor]) => factor.toUpperCase());
-
-  if (missingFactors.length) {
-    alert(`Preencha ${missingFactors.join(', ')} antes de calcular.`);
-    return;
-  }
-
-  if (!maps.nbr.marker || !maps.nbr.v0) {
-    alert('Por favor, selecione um local no mapa para definir V0.');
-    return;
-  }
-
-  const payload = getNbrPayload();
-
-  if (!payload) {
-    return;
-  }
-
-  try {
-    const response = await fetch(nbrCalcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.error || 'Erro ao calcular pela NBR 6123.');
-      return;
-    }
-
-    renderNbrCalculatedResult(data);
-    setPressureDetailsCollapsed(true);
-  } catch (error) {
-    console.error('Erro ao calcular NBR 6123:', error);
-    alert('Não foi possível calcular agora.');
-  }
-}
-
-async function calculateManualPressure() {
-  const pressaoPersonalizada = getValue('#manualPressaoInput');
-
-  if (!pressaoPersonalizada) {
-    alert('Por favor, insira a pressão informada.');
-    return;
-  }
-
-  const requestData = {
-    pressao_personalizada: pressaoPersonalizada,
-  };
-
-  if (!addFrameData(requestData, {
-    largura: '#manualLarguraInput',
-    altura: '#manualAlturaInput',
-    folhas: '#manualFolhasInput',
-    glassSection: '#manualGlassSection',
-    glassWidth: '#manualGlassWidthInput',
-    glassHeight: '#manualGlassHeightInput',
-  })) {
-    return;
-  }
-
-  const response = await sendToServer(requestData);
-
-  if (response.pressao_ensaio) {
-    displayResult('#manualResults', response);
-  } else {
-    alert('Erro ao calcular. Verifique os dados inseridos.');
-  }
-}
 
 document.querySelector('#searchBtn')?.addEventListener('click', () => searchLocation('tabled'));
 document.querySelector('#addressInput')?.addEventListener('keydown', (event) => {
@@ -1133,9 +1180,12 @@ document.querySelector('#nbrAddressInput')?.addEventListener('keydown', (event) 
   }
 });
 
-document.querySelector('#generateJsonBtn')?.addEventListener('click', calculateByLocation);
-document.querySelector('#manualCalculateBtn')?.addEventListener('click', calculateManualPressure);
-document.querySelector('#nbrCalculateBtn')?.addEventListener('click', prepareNbrCalculation);
+document.querySelector('#calculatorForm').addEventListener('submit', calculate);
+document.querySelector('#reusePressureBtn').addEventListener('click', () => {
+  if (!lastPressure) return;
+  document.querySelector('#manualPressaoInput').value = lastPressure.value;
+  invalidateResults(true);
+});
 document.querySelector('#togglePressureDetailsBtn')?.addEventListener('click', () => {
   const panel = document.querySelector('#nbrPressurePanel');
   setPressureDetailsCollapsed(!panel.classList.contains('is-collapsed'));
@@ -1169,47 +1219,44 @@ document.querySelectorAll('.alloy-option').forEach((button) => {
     }
 
     setSelectedAlloy(button.dataset.alloy);
+    invalidateResults();
     button.closest('dialog')?.close('apply');
   });
 });
 document.querySelectorAll('.glass-option').forEach((button) => {
   button.addEventListener('click', () => {
     setSelectedGlass(button);
+    invalidateResults();
     button.closest('dialog')?.close('apply');
   });
 });
-document.querySelectorAll('[data-glass-toggle]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const section = document.querySelector(`#${button.dataset.glassToggle}`);
-    const isActive = section?.classList.toggle('is-active');
-
-    button.textContent = isActive ? 'Remover' : 'Calcular vidro';
-  });
-});
-document.querySelectorAll('[data-glass-same]').forEach((checkbox) => {
-  const sourceSelectors = {
-    largura: checkbox.dataset.sourceWidth,
-    altura: checkbox.dataset.sourceHeight,
-    folhas: checkbox.dataset.sourceLeaves,
-  };
-  const section = document.querySelector(`#${checkbox.dataset.glassSame}`);
-
-  checkbox.addEventListener('change', () => {
-    updateSameGlassDimensions(checkbox, section, sourceSelectors);
-  });
-
-  [sourceSelectors.largura, sourceSelectors.altura, sourceSelectors.folhas].forEach((selector) => {
-    document.querySelector(selector)?.addEventListener('input', () => {
-      if (checkbox.checked) {
-        updateSameGlassDimensions(checkbox, section, sourceSelectors);
-      }
-    });
+document.querySelectorAll('#calculatorForm input:not([readonly])').forEach((input) => {
+  input.addEventListener('input', () => {
+    clearError();
+    updateGlassLayout();
+    invalidateResults(Boolean(input.closest('.pressure-method-panel')));
   });
 });
 document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbrBuildingHeightInput').forEach((input) => {
   input.addEventListener('input', markFactorDialogsDirty);
 });
 
+document.querySelectorAll('[data-sign-out]').forEach((button) => button.addEventListener('click', signOut));
+document.querySelector('#calculatorUserEmail').textContent = getProfile().email;
+window.addEventListener('calculator-permissions-changed', () => {
+  if (!canUse(activeTool)) return window.location.reload();
+  document.querySelectorAll('.app-navigation a').forEach((link) => { link.hidden = !canUse(link.dataset.tool); });
+  updateGlassLayout();
+  renderResults(lastCalculation);
+});
+
+const initialTool = routeTool();
+const requestedMethod = new URLSearchParams(location.search).get('metodo');
+const initialMethod = Object.keys(methodQuery).find((key) => methodQuery[key] === requestedMethod)
+  || toolDefinitions[initialTool].method;
+selectTool(initialTool);
+selectMethod(initialMethod, false);
+if (activeTool === 'wind' && requestedMethod === 'manual') updateRoute();
 updateFactorSummaries();
 updateS1SlopeVisibility();
 setSelectedAlloy(selectedAlloy);
