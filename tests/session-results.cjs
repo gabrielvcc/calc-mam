@@ -104,7 +104,7 @@ const nextFrame = (page) => page.evaluate(() => new Promise(requestAnimationFram
       assert.equal(await page.evaluate(() => window.__formBeforeFocus === document.querySelector('#calculatorForm')), true);
       assert.equal(await page.locator('#manualPressaoInput').inputValue(), '2100');
       assert.equal(await page.locator('#recalculationNotice').isVisible(), true);
-      assert.equal(await page.locator('#loginSection').count(), 0);
+      assert.equal(await page.locator('#loginSection').isVisible(), false);
     }
     assert.equal(await page.evaluate(() => window.__testTokenRefreshes), 1);
     await page.setViewportSize({ width: 390, height: 844 });

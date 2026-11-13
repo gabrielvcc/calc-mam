@@ -59,10 +59,10 @@ function routeTool() {
   return Object.keys(toolDefinitions).find((key) => (toolDefinitions[key].path.replace(/\/$/, '') || '/') === path) || 'complete';
 }
 
-function updateRoute(push = false) {
+function updateRoute() {
   const url = new URL(toolDefinitions[activeTool].path, location.origin);
   url.searchParams.set('metodo', methodQuery[activeMethod]);
-  history[push ? 'pushState' : 'replaceState']({}, '', url);
+  history.replaceState({}, '', url);
 }
 
 function updateGlassLayout() {
@@ -77,7 +77,7 @@ function updateGlassLayout() {
   updateSameGlassDimensions({ checked: activeTool === 'complete' && document.querySelector('#sameGlassInput').checked }, section, frameSelectors);
 }
 
-function selectTool(tool, push = false) {
+function selectTool(tool) {
   if (!canUse(tool)) {
     window.location.href = toolDefinitions[tool].path;
     return;
@@ -108,10 +108,6 @@ function selectTool(tool, push = false) {
   updateGlassLayout();
   clearError();
   renderResults(lastCalculation);
-  if (push) {
-    updateRoute(true);
-    document.querySelector('#toolTitle').focus({ preventScroll: true });
-  }
 }
 
 function selectMethod(method, updateUrl = true) {
@@ -164,7 +160,23 @@ function invalidateResults(pressureChanged = false) {
   if (pressureChanged) {
     setPressureDetailsCollapsed(false);
   }
-  renderResults(lastCalculation);
+  updateRecalculationNotice();
+}
+
+function updateRecalculationNotice() {
+  const results = document.querySelector('#results');
+  const previous = results.querySelector('#recalculationNotice');
+  if (!resultsDirty || !lastCalculation) {
+    previous?.remove();
+    return;
+  }
+  if (previous) return;
+  const notice = document.createElement('p');
+  notice.id = 'recalculationNotice';
+  notice.className = 'result-stale';
+  notice.setAttribute('role', 'status');
+  notice.textContent = 'Dados alterados. Recalcule para atualizar os resultados.';
+  results.querySelector('h2').after(notice);
 }
 
 function updateReusePressure() {
@@ -172,13 +184,6 @@ function updateReusePressure() {
   button.hidden = !Number.isFinite(lastPressure?.value) || activeMethod !== 'manual';
   button.textContent = lastPressure ? `Usar última pressão: ${formatDetailNumber(lastPressure.value)} Pa` : '';
 }
-
-document.addEventListener('click', (event) => {
-  const link = event.target.closest('a[data-tool]');
-  if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  event.preventDefault();
-  selectTool(link.dataset.tool, true);
-});
 
 document.querySelectorAll('[data-method]').forEach((button) => {
   button.addEventListener('click', () => selectMethod(button.dataset.method));
@@ -192,14 +197,6 @@ document.querySelectorAll('[data-method]').forEach((button) => {
     buttons[next].focus();
     buttons[next].click();
   });
-});
-
-window.addEventListener('popstate', () => {
-  document.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close('cancel'));
-  selectTool(routeTool());
-  const method = new URLSearchParams(location.search).get('metodo');
-  selectMethod(Object.keys(methodQuery).find((key) => methodQuery[key] === method) || toolDefinitions[activeTool].method, false);
-  if (activeTool === 'wind' && method === 'manual') updateRoute();
 });
 
 dialogButtons.forEach((button) => {
@@ -697,7 +694,6 @@ function renderResults(response = null) {
   ` : '';
   results.innerHTML = `
     <h2>Resultados</h2>
-    ${resultsDirty && response ? '<p class="result-stale" id="recalculationNotice" role="status">Dados alterados. Recalcule para atualizar os resultados.</p>' : ''}
     <dl>
       ${frameHtml}
       ${glassHtml}
@@ -715,6 +711,7 @@ function renderResults(response = null) {
       </nav>
     ` : ''}
   `;
+  updateRecalculationNotice();
   results.querySelector('[data-glass-details]')?.addEventListener('click', openGlassDetails);
   results.querySelector('[data-pressure-details]')?.addEventListener('click', openCalculationDetails);
 }
@@ -1235,22 +1232,28 @@ document.querySelectorAll('#nbrBuildingWidthInput, #nbrBuildingLengthInput, #nbr
   input.addEventListener('input', markFactorDialogsDirty);
 });
 
-document.querySelectorAll('[data-sign-out]').forEach((button) => button.addEventListener('click', signOut));
-document.querySelector('#calculatorUserEmail').textContent = getProfile().email;
+document.querySelectorAll('#top-bar [data-sign-out]').forEach((button) => button.addEventListener('click', signOut));
+document.querySelector('#calculatorUserEmail').textContent = getProfile()?.email || '';
 window.addEventListener('calculator-permissions-changed', () => {
-  if (!canUse(activeTool)) return window.location.reload();
   document.querySelectorAll('.app-navigation a').forEach((link) => { link.hidden = !canUse(link.dataset.tool); });
   updateGlassLayout();
   renderResults(lastCalculation);
 });
 
-const initialTool = routeTool();
-const requestedMethod = new URLSearchParams(location.search).get('metodo');
-const initialMethod = Object.keys(methodQuery).find((key) => methodQuery[key] === requestedMethod)
-  || toolDefinitions[initialTool].method;
-selectTool(initialTool);
-selectMethod(initialMethod, false);
-if (activeTool === 'wind' && requestedMethod === 'manual') updateRoute();
+let calculatorInitialized = false;
+export function showCalculatorRoute() {
+  const tool = routeTool();
+  const requestedMethod = new URLSearchParams(location.search).get('metodo');
+  let method = Object.keys(methodQuery).find((key) => methodQuery[key] === requestedMethod)
+    || (calculatorInitialized ? activeMethod : toolDefinitions[tool].method);
+  if (tool === 'wind' && method === 'manual') method = 'tabled';
+  if (!calculatorInitialized || activeTool !== tool || document.body.dataset.tool !== tool) selectTool(tool);
+  if (!calculatorInitialized || activeMethod !== method) selectMethod(method, false);
+  calculatorInitialized = true;
+  updateRoute();
+  requestAnimationFrame(() => maps[activeMethod]?.instance?.invalidateSize());
+}
+
 updateFactorSummaries();
 updateS1SlopeVisibility();
 setSelectedAlloy(selectedAlloy);

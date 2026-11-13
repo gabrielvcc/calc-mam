@@ -34,6 +34,28 @@ function s2Fixture() {
   return { class: 'A', value: 1.04, gust_factor: 1, meteorological: { bm: 1, p: 0.085 } };
 }
 
+async function checkRetainedResults(page, selectors) {
+  const metrics = await page.locator('#results dl').innerText();
+  const calculations = requests.length;
+  await page.evaluate(() => { window.__previousResultList = document.querySelector('#results dl'); });
+  for (const selector of selectors) {
+    const input = page.locator(selector);
+    const original = await input.inputValue();
+    await input.focus();
+    await input.press('End');
+    await input.press('Backspace');
+    assert.equal(await input.inputValue(), original.slice(0, -1));
+    for (const clear of [false, true]) {
+      if (clear) await input.fill('');
+      assert.equal(await page.locator('#results dl').innerText(), metrics);
+      assert.equal(await page.evaluate(() => document.querySelector('#results dl') === window.__previousResultList), true, 'Editing inputs must not replace the last result nodes');
+      assert.equal(await page.locator('#recalculationNotice').isVisible(), true);
+    }
+    await input.fill(original);
+  }
+  assert.equal(requests.length, calculations, 'Editing inputs must not request a new calculation');
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
   try {
@@ -53,8 +75,8 @@ function s2Fixture() {
 
     await page.goto(`${base}/calculo-completo/?metodo=manual`);
     await page.waitForSelector('body[data-tool]');
-    assert.equal(await page.locator('.brand strong').evaluate((element) => element.firstChild.textContent), brandTitle);
-    assert.equal(await page.locator('.brand small').innerText(), 'Calculadoras');
+    assert.equal(await page.locator('#top-bar .brand strong').evaluate((element) => element.firstChild.textContent), brandTitle);
+    assert.equal(await page.locator('#top-bar .brand small').innerText(), 'Calculadoras');
     assert.equal(await page.locator('#top-bar .standards-button').count(), 0);
     await page.locator('#sidebar > .standards-button').click();
     await page.waitForSelector('#standardsDialog[open]');
@@ -76,6 +98,11 @@ function s2Fixture() {
     await page.waitForFunction(() => document.querySelector('#results').textContent.includes('31.727'));
     assert.deepEqual(await page.locator('#results dt').allTextContents(), ['Wx necessário', 'Jx necessário', 'Vidro mínimo', 'Pressão de ensaio']);
     assert.equal(requests.at(-1).payload.calcular_vidro, true);
+    await checkRetainedResults(page, ['#frameWidthInput', '#frameHeightInput', '#frameLeavesInput', '#manualPressaoInput']);
+    const calculatedMetrics = await page.locator('#results dl').innerText();
+    await page.locator('#includeGlassInput').uncheck();
+    assert.equal(await page.locator('#results dl').innerText(), calculatedMetrics);
+    await page.locator('#includeGlassInput').check();
     await page.locator('[data-glass-details]').click();
     await page.waitForSelector('#glassDetailsDialog[open]');
     assert.match(await page.locator('#glassDetailsContent').innerText(), /Espessura total mínima por flecha/);
@@ -93,6 +120,7 @@ function s2Fixture() {
     assert.equal(requests.at(-1).payload.liga, undefined);
     assert.equal(requests.at(-1).payload.calcular_vidro, true);
     assert.equal(await page.locator('#results dt').filter({ hasText: 'Wx' }).count(), 0);
+    await checkRetainedResults(page, ['#glassWidthInput', '#glassHeightInput', '#manualPressaoInput']);
     await page.goBack();
     assert.equal(await page.locator('#toolTitle').textContent(), completeTitle);
     assert.equal(await page.locator('#frameWidthInput').inputValue(), '2400');
@@ -106,6 +134,7 @@ function s2Fixture() {
     assert.equal(requests.at(-1).payload.calcular_vidro, undefined);
     assert.equal(requests.at(-1).payload.larguratotal, '2400');
     assert.equal(requests.at(-1).payload.liga, '6063-T6');
+    await checkRetainedResults(page, ['#frameWidthInput', '#frameHeightInput', '#frameLeavesInput']);
 
     await page.locator('.app-navigation [data-tool="wind"]').click();
     assert.equal(await page.locator('#manualTab').isVisible(), false);
@@ -123,6 +152,7 @@ function s2Fixture() {
     await page.waitForSelector('.result-next');
     assert.equal(requests.at(-1).payload.pressao_personalizada, undefined);
     assert.equal(requests.at(-1).payload.pavimentos, 5);
+    await checkRetainedResults(page, ['#pavimentosInput']);
     await page.locator('.result-next [data-tool="glass"]').click();
     await page.reload();
     await page.waitForSelector('body[data-tool]');

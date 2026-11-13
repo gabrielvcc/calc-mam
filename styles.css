@@ -123,7 +123,7 @@ a.top-btn {
   min-height: 0;
 }
 
-#bottom-bar {
+.bottom-bar {
   height: 35px;
   display: flex;
   align-items: center;
@@ -136,18 +136,18 @@ a.top-btn {
   font-size: 12px;
 }
 
-#bottom-bar a {
+.bottom-bar a {
   color: var(--dark-gray);
   font-weight: 500;
   text-decoration: none;
   transition: color 0.2s;
 }
 
-#bottom-bar a:hover {
+.bottom-bar a:hover {
   color: var(--blue);
 }
 
-#bottom-bar p span {
+.bottom-bar p span {
   position: relative;
   top: 1px;
   font-size: 1.5em;
@@ -1414,11 +1414,12 @@ dialog::backdrop {
   display: none !important;
 }
 
-#app {
+#app,
+.app-view {
   display: contents;
 }
 
-#app.is-preparing {
+.app-view.is-preparing {
   visibility: hidden;
 }
 
