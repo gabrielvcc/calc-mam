@@ -57,6 +57,15 @@
 .access-list-heading h2 { font-size: 16px; }
 .access-table td:last-child { white-space: nowrap; }
 .access-table td button + button { margin-left: 8px; }
+.attempts-table { min-width: 760px; }
+.attempts-table td { vertical-align: middle; }
+.attempt-account { display: grid; gap: 3px; max-width: 290px; overflow-wrap: anywhere; }
+.attempt-account span { color: var(--medium-gray); font-size: 12px; }
+.attempts-table time { white-space: nowrap; }
+.attempts-table .attempt-configure { color: var(--blue-dark); background: #e5f4fb; }
+.attempts-table .attempt-configure:hover { background: #d3edf8; }
+.attempt-configure .lucide { width: 16px; height: 16px; }
+#attemptsMessage { margin: 0 0 12px; }
 #adminMessage { font-size: 13px; color: #247a4b; }
 #adminMessage.access-error { color: #a03731; }
 @media (max-width: 760px) {

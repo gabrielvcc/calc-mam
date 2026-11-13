@@ -4,6 +4,9 @@
 </header>
 
 <main class="access-main">
+  <section class="login-view" id="checkingAccessSection" role="status" hidden>
+    <p class="eyebrow">Calculadoras</p><h1>Verificando acesso</h1>
+  </section>
   <section class="login-view" id="loginSection">
     <p class="eyebrow">Área restrita</p>
     <h1>Acesso às calculadoras</h1>
@@ -46,10 +49,13 @@
     </form>
     <div class="access-list-heading"><h2>E-mails cadastrados</h2><button class="secondary-btn" id="reloadGrantsBtn" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Atualizar</button></div>
     <div class="alloy-table-wrap"><table class="alloy-table access-table"><thead><tr><th>E-mail</th><th>Status</th><th>Calculadoras</th><th>Ações</th></tr></thead><tbody id="grantsList"></tbody></table></div>
+    <div class="access-list-heading"><h2 id="attemptsHeading">Tentativas sem acesso</h2><button class="secondary-btn" id="reloadAttemptsBtn" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Atualizar</button></div>
+    <p class="access-error" id="attemptsMessage" role="status" hidden></p>
+    <div class="alloy-table-wrap" role="region" aria-labelledby="attemptsHeading" tabindex="0"><table class="alloy-table access-table attempts-table"><thead><tr><th>Conta Google</th><th>Última tentativa</th><th>Tentativas</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="attemptsList"><tr><td colspan="5">Carregando tentativas...</td></tr></tbody></table></div>
   </section>
 </main>
 
-<footer id="bottom-bar"><p>developed by <a href="https://github.com/gabrielvcc" target="_blank" rel="noopener">gabrielvc</a> | <a href="#">v2.0.2</a></p></footer>
+<footer id="bottom-bar"><p>developed by <a href="https://github.com/gabrielvcc" target="_blank" rel="noopener">gabrielvc</a> | <a href="#">v2.1.0</a></p></footer>
 
 <dialog id="requestAccessDialog">
   <form class="dialog-content request-form" id="requestAccessForm">

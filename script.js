@@ -43,6 +43,7 @@ const frameSelectors = {
 let activeTool = 'complete';
 let activeMethod = 'tabled';
 let lastCalculation = null;
+let resultsDirty = false;
 let lastPressure = null;
 let inputRevision = 0;
 let isCalculating = false;
@@ -159,19 +160,9 @@ function reportError(message, selector = null) {
 
 function invalidateResults(pressureChanged = false) {
   inputRevision += 1;
-  const pressureResult = !pressureChanged && lastCalculation ? { ...lastCalculation } : null;
-  if (pressureResult) {
-    delete pressureResult.wx;
-    delete pressureResult.jx;
-    delete pressureResult.liga;
-    delete pressureResult.vidro;
-  }
-  lastCalculation = pressureResult;
-  lastNbrCalculation = pressureResult?.cp ? pressureResult : null;
-  lastGlassCalculation = null;
+  if (lastCalculation) resultsDirty = true;
   if (pressureChanged) {
     setPressureDetailsCollapsed(false);
-    document.querySelector('#nbrPressureFinalValue').textContent = '-- Pa';
   }
   renderResults(lastCalculation);
 }
@@ -689,7 +680,7 @@ function renderResults(response = null) {
   const results = document.querySelector('#results');
   const hasPressure = Number.isFinite(response?.pressao_ensaio);
   const frameVisible = activeTool === 'complete' || activeTool === 'profiles';
-  const glassVisible = activeTool === 'glass' || (activeTool === 'complete' && document.querySelector('#includeGlassInput').checked);
+  const glassVisible = canUse('glass') && (activeTool === 'glass' || (activeTool === 'complete' && (response ? Boolean(response.vidro) : document.querySelector('#includeGlassInput').checked)));
   const glass = response?.vidro;
   lastNbrCalculation = response?.cp ? response : null;
   lastGlassCalculation = glass || null;
@@ -706,6 +697,7 @@ function renderResults(response = null) {
   ` : '';
   results.innerHTML = `
     <h2>Resultados</h2>
+    ${resultsDirty && response ? '<p class="result-stale" id="recalculationNotice" role="status">Dados alterados. Recalcule para atualizar os resultados.</p>' : ''}
     <dl>
       ${frameHtml}
       ${glassHtml}
@@ -802,6 +794,7 @@ async function calculate(event) {
   if (!addFrameData(payload)) return;
   const revision = inputRevision;
   const method = activeMethod;
+  const tool = activeTool;
   const button = document.querySelector('#calculateBtn');
   isCalculating = true;
   button.disabled = true;
@@ -809,14 +802,15 @@ async function calculate(event) {
   document.querySelector('#results').setAttribute('aria-busy', 'true');
   try {
     const data = await requestCalculation(method === 'nbr' ? nbrCalcUrl : apiUrl, payload);
-    if (revision !== inputRevision) return;
+    if (method !== activeMethod || tool !== activeTool) return;
     lastCalculation = data;
+    resultsDirty = revision !== inputRevision;
     lastPressure = { value: data.pressao_ensaio, method };
     renderResults(data);
     logGlassCalculation(data);
     if (method === 'nbr') {
       document.querySelector('#nbrPressureFinalValue').textContent = `${Math.round(data.pressao_ensaio).toLocaleString('pt-BR')} Pa`;
-      setPressureDetailsCollapsed(true);
+      setPressureDetailsCollapsed(!resultsDirty);
     }
     updateReusePressure();
   } catch (error) {

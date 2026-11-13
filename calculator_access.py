@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import threading
+from datetime import datetime, timezone
 
 from flask import g, jsonify, request
 
@@ -114,6 +115,36 @@ class FirebaseBackend:
         self._initialize()
         self.db.collection("calculator_access").document(key).delete(timeout=10)
 
+    def record_denied_attempt(self, email, name, reason):
+        self._initialize()
+        from firebase_admin import firestore
+
+        reference = self.db.collection("calculator_access_attempts").document(email_key(email))
+
+        @firestore.transactional
+        def record(transaction):
+            snapshot = reference.get(transaction=transaction, timeout=10)
+            previous = snapshot.to_dict() if snapshot.exists else {}
+            last_attempt = previous.get("last_attempt_at")
+            # Coalesce repeated permission checks and simultaneous tabs for one minute.
+            if isinstance(last_attempt, datetime) and previous.get("reason") == reason:
+                if (datetime.now(timezone.utc) - last_attempt).total_seconds() < 60:
+                    return False
+            transaction.set(reference, {
+                "email": email, "name": name, "reason": reason,
+                "first_attempt_at": previous.get("first_attempt_at") or firestore.SERVER_TIMESTAMP,
+                "last_attempt_at": firestore.SERVER_TIMESTAMP,
+                "attempts": previous.get("attempts", 0) + 1,
+            })
+            return True
+
+        return record(self.db.transaction(max_attempts=3))
+
+    def list_denied_attempts(self):
+        self._initialize()
+        attempts = self.db.collection("calculator_access_attempts").order_by("last_attempt_at", direction="DESCENDING").limit(500).stream(timeout=10)
+        return [{"id": item.id, **item.to_dict()} for item in attempts]
+
 
 class AccessManager:
     def __init__(self, backend, admin_emails=(), web_config=None, contact_email="eng@gabrielvc.com.br"):
@@ -160,10 +191,13 @@ class AccessManager:
                 logger.error("Calculator whitelist lookup failed; access denied")
                 raise AccessError(503, "access_unavailable", "Não foi possível conferir suas permissões agora.") from None
             if not isinstance(entry, dict) or entry.get("active") is not True or entry.get("email") != email:
+                reason = "inactive" if isinstance(entry, dict) and entry.get("email") == email and entry.get("active") is not True else "not_allowlisted"
+                self.record_denied_attempt(email, claims.get("name", ""), reason)
                 raise AccessError(403, "not_allowlisted", "Seu e-mail não está autorizado a usar as calculadoras.")
             permissions = entry.get("apps", {})
             apps = {app: isinstance(permissions, dict) and permissions.get(app) is True for app in APP_IDS}
             if not any(apps.values()):
+                self.record_denied_attempt(email, claims.get("name", ""), "no_apps")
                 raise AccessError(403, "not_allowlisted", "Seu e-mail não tem calculadoras liberadas.")
         principal = {
             "uid": claims.get("uid", claims.get("sub")), "email": email,
@@ -171,6 +205,12 @@ class AccessManager:
         }
         g.calculator_user = principal
         return principal
+
+    def record_denied_attempt(self, email, name, reason):
+        try:
+            self.backend.record_denied_attempt(email, str(name or "")[:200], reason)
+        except Exception:
+            logger.warning("Could not record a denied calculator login; access remains denied")
 
     def require_admin(self):
         principal = self.authenticate()
@@ -234,6 +274,21 @@ def install_calculator_access(app, manager=None):
             return jsonify({"users": [{key: item.get(key) for key in ("id", "email", "active", "apps")} for item in entries]})
         except Exception:
             raise AccessError(503, "access_unavailable", "Não foi possível carregar as permissões.") from None
+
+    @app.get("/auth/attempts")
+    def calculator_access_attempts():
+        manager.require_admin()
+        try:
+            attempts = []
+            for entry in manager.backend.list_denied_attempts():
+                item = {key: entry.get(key) for key in ("email", "name", "reason", "attempts")}
+                for key in ("first_attempt_at", "last_attempt_at"):
+                    value = entry.get(key)
+                    item[key] = value.isoformat() if isinstance(value, datetime) else None
+                attempts.append(item)
+            return jsonify({"attempts": attempts})
+        except Exception:
+            raise AccessError(503, "access_unavailable", "Não foi possível carregar as tentativas de acesso.") from None
 
     @app.put("/auth/access")
     def calculator_access_put():

@@ -8,24 +8,26 @@ async function mockFirebase(page, { initialUser = 'member', configured = true } 
     blocked: null,
   };
   const grants = [];
+  const attempts = [];
   await page.route('**/firebase-client.js', (route) => route.fulfill({ contentType: 'text/javascript', body: `
     export async function createFirebaseIdentity() {
       const key = '__test_firebase_identity';
-      if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, JSON.stringify(${JSON.stringify(initialUser)}));
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(${JSON.stringify(initialUser)}));
       let listener;
-      const current = () => JSON.parse(sessionStorage.getItem(key));
+      const current = () => JSON.parse(localStorage.getItem(key));
       const notify = () => listener?.(current() ? { email: current() + '@example.com' } : null);
+      window.addEventListener('storage', (event) => { if (event.key === key) notify(); });
       return {
         onChange(callback) { listener = callback; queueMicrotask(notify); },
-        async token() { return current() ? 'test-' + current() : null; },
-        async signIn() { sessionStorage.setItem(key, JSON.stringify(window.__testLoginAs || 'member')); notify(); },
-        async signOut() { sessionStorage.setItem(key, 'null'); notify(); },
+        async token(refresh) { if (refresh) window.__testTokenRefreshes = (window.__testTokenRefreshes || 0) + 1; return current() ? 'test-' + current() : null; },
+        async signIn() { localStorage.setItem(key, JSON.stringify(window.__testLoginAs || 'member')); notify(); },
+        async signOut() { localStorage.setItem(key, 'null'); notify(); },
       };
     }
   ` }));
 
   return {
-    profiles, grants,
+    profiles, grants, attempts,
     async handle(route) {
       const path = new URL(route.request().url()).pathname;
       if (!path.startsWith('/auth/')) return false;
@@ -40,6 +42,8 @@ async function mockFirebase(page, { initialUser = 'member', configured = true } 
         await route.fulfill({ json: profile });
       } else if (!profile.admin) {
         await route.fulfill({ status: 403, json: { error: 'Acesso restrito ao administrador.', code: 'admin_required' } });
+      } else if (path === '/auth/attempts' && route.request().method() === 'GET') {
+        await route.fulfill({ json: { attempts } });
       } else if (route.request().method() === 'GET') {
         await route.fulfill({ json: { users: grants } });
       } else {

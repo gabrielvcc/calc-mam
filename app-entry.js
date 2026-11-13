@@ -76,7 +76,7 @@ function showLoginError(message) {
 }
 
 function showAccessSection(id) {
-  for (const key of ['loginSection', 'deniedSection', 'portalSection', 'adminSection']) {
+  for (const key of ['checkingAccessSection', 'loginSection', 'deniedSection', 'portalSection', 'adminSection']) {
     document.getElementById(key).hidden = key !== id;
   }
 }
@@ -117,11 +117,17 @@ async function renderState(state) {
     const revision = ++renderRevision;
     const markup = await loadMarkup('./calculator.html');
     if (revision !== renderRevision) return;
+    mount.classList.add('is-preparing');
     mount.innerHTML = markup;
     document.body.dataset.screen = 'calculator';
     calculatorLoaded = true;
-    await import('./script.js');
-    window.lucide?.createIcons();
+    try {
+      await import('./script.js');
+      window.lucide?.createIcons();
+    } catch (error) {
+      calculatorLoaded = false;
+      throw error;
+    } finally { mount.classList.remove('is-preparing'); }
     return;
   }
   const viewKey = JSON.stringify(state);
@@ -162,9 +168,15 @@ try {
   mount.innerHTML = accessMarkup;
   document.body.dataset.screen = 'access';
   bindAccessPage();
-  await initializeAccess((state) => { renderState(state).catch(() => showLoginError('Não foi possível abrir esta página. Recarregue para tentar novamente.')); });
+  showAccessSection('checkingAccessSection');
+  await initializeAccess((state) => {
+    renderState(state).catch(() => renderState({ status: 'error', message: 'Não foi possível abrir esta página. Recarregue para tentar novamente.' }));
+  });
 } catch (error) {
-  if (accessMarkup) showLoginError(error.message || 'O login está indisponível.');
+  if (accessMarkup) {
+    showAccessSection('loginSection');
+    showLoginError(error.message || 'O login está indisponível.');
+  }
   else {
     mount.innerHTML = '<main class="app-loading"><p>Não foi possível abrir o site.</p><a href="mailto:eng@gabrielvc.com.br">Solicitar acesso por e-mail</a></main>';
   }

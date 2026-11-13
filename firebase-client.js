@@ -5,7 +5,7 @@ export async function createFirebaseIdentity(config) {
   ]);
   const app = initializeApp(config);
   const auth = firebaseAuth.getAuth(app);
-  await firebaseAuth.setPersistence(auth, firebaseAuth.browserSessionPersistence);
+  await firebaseAuth.setPersistence(auth, firebaseAuth.browserLocalPersistence);
   const provider = new firebaseAuth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   await firebaseAuth.getRedirectResult(auth);

@@ -1,5 +1,6 @@
 import copy
 import ast
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -28,6 +29,8 @@ class FakeFirebase:
         }
         self.reads = 0
         self.fail = False
+        self.attempts = {}
+        self.fail_attempts = False
 
     def verify_token(self, token):
         if token not in self.tokens:
@@ -48,6 +51,22 @@ class FakeFirebase:
 
     def delete_entry(self, key):
         self.entries = {email: entry for email, entry in self.entries.items() if email_key(email) != key}
+
+    def record_denied_attempt(self, email, name, reason):
+        if self.fail_attempts:
+            raise RuntimeError("Firestore unavailable")
+        previous = self.attempts.get(email, {})
+        now = datetime.now(timezone.utc)
+        self.attempts[email] = {
+            "email": email, "name": name, "reason": reason,
+            "first_attempt_at": previous.get("first_attempt_at", now),
+            "last_attempt_at": now, "attempts": previous.get("attempts", 0) + 1,
+        }
+
+    def list_denied_attempts(self):
+        if self.fail_attempts:
+            raise RuntimeError("Firestore unavailable")
+        return sorted(copy.deepcopy(list(self.attempts.values())), key=lambda entry: entry["last_attempt_at"], reverse=True)
 
 
 class CalculatorAccessTests(unittest.TestCase):
@@ -214,6 +233,96 @@ class CalculatorAccessTests(unittest.TestCase):
         response = self.client.get("/auth/me", headers=self.headers())
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
         self.assertIn("Authorization", response.headers["Vary"])
+
+    def test_denied_attempts_use_verified_identity_without_granting_access(self):
+        del self.backend.entries["member@example.com"]
+        self.backend.tokens["member"]["name"] = "Conta verificada"
+        response = self.client.get("/auth/me", headers={**self.headers(), "X-User-Email": "forged@example.com"})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(list(self.backend.attempts), ["member@example.com"])
+        self.assertEqual(self.backend.attempts["member@example.com"]["name"], "Conta verificada")
+        self.assertEqual(self.backend.attempts["member@example.com"]["reason"], "not_allowlisted")
+        self.assertNotIn("member@example.com", self.backend.entries)
+        self.assertEqual(self.executed, [])
+
+    def test_anonymous_invalid_unverified_and_allowed_users_are_not_recorded(self):
+        self.client.get("/auth/me")
+        for token in ("forged", "unverified", "owner", "member"):
+            self.client.get("/auth/me", headers=self.headers(token))
+        self.backend.tokens["invalid-email"] = {"uid": "bad", "email": "bad", "email_verified": True}
+        self.client.get("/auth/me", headers=self.headers("invalid-email"))
+        self.backend.fail = True
+        self.client.get("/auth/me", headers=self.headers())
+        self.assertEqual(self.backend.attempts, {})
+
+    def test_inactive_accounts_and_accounts_without_apps_are_recorded(self):
+        self.backend.entries["member@example.com"]["active"] = False
+        self.assertEqual(self.client.get("/auth/me", headers=self.headers()).status_code, 403)
+        self.assertEqual(self.backend.attempts["member@example.com"]["reason"], "inactive")
+        self.backend.entries["member@example.com"].update(active=True, apps={})
+        self.assertEqual(self.client.get("/auth/me", headers=self.headers()).status_code, 403)
+        self.assertEqual(self.backend.attempts["member@example.com"]["reason"], "no_apps")
+
+    def test_attempt_logging_failure_never_grants_access(self):
+        self.backend.fail_attempts = True
+        del self.backend.entries["member@example.com"]
+        response = self.client.post("/pressaovento", headers=self.headers(), json={})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json["code"], "not_allowlisted")
+        self.assertEqual(self.executed, [])
+
+    def test_only_admin_can_read_attempts_and_response_exposes_no_extra_fields(self):
+        self.backend.record_denied_attempt("blocked@example.com", "Pessoa", "not_allowlisted")
+        self.backend.attempts["blocked@example.com"]["private_field"] = "must-not-be-exposed"
+        self.assertEqual(self.client.get("/auth/attempts").status_code, 401)
+        self.assertEqual(self.client.get("/auth/attempts", headers=self.headers()).status_code, 403)
+        response = self.client.get("/auth/attempts", headers=self.headers("owner"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store")
+        entry = response.json["attempts"][0]
+        self.assertEqual(set(entry), {"email", "name", "reason", "attempts", "first_attempt_at", "last_attempt_at"})
+        self.assertEqual(entry["email"], "blocked@example.com")
+        self.assertIsNotNone(datetime.fromisoformat(entry["last_attempt_at"]).tzinfo)
+
+    def test_attempts_list_unavailable_returns_json_error(self):
+        self.backend.fail_attempts = True
+        response = self.client.get("/auth/attempts", headers=self.headers("owner"))
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json["code"], "access_unavailable")
+
+    def test_firestore_attempts_group_by_email_and_coalesce_repeated_checks(self):
+        sdk = ModuleType("firebase_admin")
+        sdk.firestore = ModuleType("firebase_admin.firestore")
+        sdk.firestore.SERVER_TIMESTAMP = object()
+        sdk.firestore.transactional = lambda function: function
+        backend = FirebaseBackend("expected-project")
+        backend.app = object()
+        backend.db = Mock()
+        reference = backend.db.collection.return_value.document.return_value
+        transaction = backend.db.transaction.return_value
+        stored = {}
+
+        def read(**kwargs):
+            return Mock(exists=bool(stored), to_dict=lambda: copy.deepcopy(stored))
+
+        def write(document, data):
+            self.assertIs(document, reference)
+            stored.update({key: datetime.now(timezone.utc) if value is sdk.firestore.SERVER_TIMESTAMP else value for key, value in data.items()})
+
+        reference.get.side_effect = read
+        transaction.set.side_effect = write
+        with patch.dict(sys.modules, {"firebase_admin": sdk, "firebase_admin.firestore": sdk.firestore}):
+            self.assertTrue(backend.record_denied_attempt("blocked@example.com", "Pessoa", "not_allowlisted"))
+            first = stored["first_attempt_at"]
+            self.assertFalse(backend.record_denied_attempt("blocked@example.com", "Pessoa", "not_allowlisted"))
+            self.assertEqual(transaction.set.call_count, 1)
+            stored["last_attempt_at"] -= timedelta(seconds=61)
+            self.assertTrue(backend.record_denied_attempt("blocked@example.com", "Pessoa", "not_allowlisted"))
+        self.assertEqual(stored["attempts"], 2)
+        self.assertEqual(stored["first_attempt_at"], first)
+        self.assertEqual(stored["reason"], "not_allowlisted")
+        backend.db.collection.assert_called_with("calculator_access_attempts")
+        backend.db.collection.return_value.document.assert_called_with(email_key("blocked@example.com"))
 
 
 if __name__ == "__main__":

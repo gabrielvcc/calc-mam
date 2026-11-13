@@ -1418,6 +1418,10 @@ dialog::backdrop {
   display: contents;
 }
 
+#app.is-preparing {
+  visibility: hidden;
+}
+
 .app-loading {
   display: flex;
   flex: 1;
@@ -1834,6 +1838,16 @@ input[aria-invalid="true"] {
   margin-top: 14px;
   color: var(--medium-gray);
   font-size: 12px;
+}
+
+.result-stale {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border-left: 2px solid #c99b36;
+  background: #fff8e8;
+  color: #806128;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .result-next {
